@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, repositories } from '../../../../db';
+import { db, repositories, pricingHistory } from '../../../../db';
 import { eq, desc} from 'drizzle-orm';
 import { requireAdmin } from '../../../../lib/auth';
 
@@ -62,6 +62,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         active: true,
       })
       .returning();
+
+    // Create initial pricing history entry
+    await db.insert(pricingHistory).values({
+      repositoryId: repository.id,
+      priceCents: data.priceCents,
+      pricingType: data.pricingType,
+      subscriptionCadence: data.subscriptionCadence,
+      changedBy: session.userId,
+      effectiveFrom: new Date(),
+    });
 
     return new Response(JSON.stringify(repository), {
       status: 201,

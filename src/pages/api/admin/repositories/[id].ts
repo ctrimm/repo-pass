@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, repositories } from '../../../../db';
-import { eq } from 'drizzle-orm';
+import { db, repositories, pricingHistory } from '../../../../db';
+import { eq, desc, isNull } from 'drizzle-orm';
 import { requireAdmin } from '../../../../lib/auth';
 
 const updateRepositorySchema = z.object({
@@ -63,11 +63,53 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
 export const PATCH: APIRoute = async ({ params, request, cookies }) => {
   try {
-    await requireAdmin(cookies);
+    const session = await requireAdmin(cookies);
 
     const body = await request.json();
     const data = updateRepositorySchema.parse(body);
 
+    // Get current repository
+    const current = await db.query.repositories.findFirst({
+      where: eq(repositories.id, params.id!),
+    });
+
+    if (!current) {
+      return new Response(JSON.stringify({ error: 'Repository not found' }), {
+        status: 404,
+      });
+    }
+
+    // Check if price is changing
+    if (data.priceCents && data.priceCents !== current.priceCents) {
+      // Close out the current pricing history entry
+      const [currentHistory] = await db
+        .select()
+        .from(pricingHistory)
+        .where(eq(pricingHistory.repositoryId, params.id!))
+        .orderBy(desc(pricingHistory.effectiveFrom))
+        .limit(1);
+
+      if (currentHistory && !currentHistory.effectiveUntil) {
+        await db
+          .update(pricingHistory)
+          .set({
+            effectiveUntil: new Date(),
+          })
+          .where(eq(pricingHistory.id, currentHistory.id));
+      }
+
+      // Create new pricing history entry
+      await db.insert(pricingHistory).values({
+        repositoryId: params.id!,
+        priceCents: data.priceCents,
+        pricingType: current.pricingType,
+        subscriptionCadence: current.subscriptionCadence,
+        changedBy: session.userId,
+        effectiveFrom: new Date(),
+      });
+    }
+
+    // Update repository
     const [updated] = await db
       .update(repositories)
       .set({
@@ -76,12 +118,6 @@ export const PATCH: APIRoute = async ({ params, request, cookies }) => {
       })
       .where(eq(repositories.id, params.id!))
       .returning();
-
-    if (!updated) {
-      return new Response(JSON.stringify({ error: 'Repository not found' }), {
-        status: 404,
-      });
-    }
 
     return new Response(JSON.stringify(updated), {
       status: 200,

@@ -106,4 +106,46 @@ To list your premium theme on your personal site:
 
 ---
 
+## ✅ Recently Completed Features
+
+### Customer Management (January 2026)
+- ✅ **Customer List Page** (`/admin/customers`)
+  - Filter by repository, status, and search
+  - View all purchases with detailed information
+  - Quick actions to view details or revoke access
+  - Stats dashboard showing total, active, pending, and revoked customers
+
+- ✅ **Customer Detail Page** (`/admin/customers/[id]`)
+  - Complete customer information and purchase history
+  - Repository access details with GitHub links
+  - Stripe payment information (customer ID, payment intent, subscription)
+  - Full activity log showing all access events
+  - Timestamps for purchase, access grant, and revocation
+  - Quick action buttons to revoke access or view on GitHub
+
+### Repository Management (January 2026)
+- ✅ **Repository Edit Page** (`/admin/repositories/[id]/edit`)
+  - Edit display name, description, and cover image
+  - Update pricing (with grandfathering - existing customers keep old price)
+  - Toggle active/inactive status
+  - View repository statistics (revenue, purchases, active customers)
+  - Quick links to product page, GitHub, and customers
+  - GitHub owner/repo name locked after creation (cannot be changed)
+
+- ✅ **Pricing History Tracking**
+  - Automatic history entry created when repository is added
+  - New history entry created whenever price is updated
+  - Previous pricing periods automatically closed with `effectiveUntil` date
+  - Full audit trail showing who changed pricing and when
+  - Displayed on edit page with current price highlighted
+  - Supports grandfathering: existing customers maintain their original price
+
+### Technical Improvements
+- ✅ Pricing history database integration
+- ✅ Admin session tracking for change attribution
+- ✅ Automatic effective date management
+- ✅ Historical pricing preserved for compliance and analytics
+
+---
+
 **Questions?** Check `/docs/SETUP.md` for detailed instructions or ping Claude!
