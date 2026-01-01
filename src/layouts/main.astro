@@ -1,0 +1,46 @@
+---
+import '../styles/global.css';
+import SEO from '../components/SEO.astro';
+
+export interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  canonical?: string;
+  type?: 'website' | 'article';
+  noindex?: boolean;
+  nofollow?: boolean;
+}
+
+const {
+  title,
+  description,
+  image,
+  canonical,
+  type,
+  noindex,
+  nofollow,
+} = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+		<SEO
+			title={title}
+			description={description}
+			image={image}
+			canonical={canonical}
+			type={type}
+			noindex={noindex}
+			nofollow={nofollow}
+		/>
+	</head>
+	<body>
+		<slot />
+	</body>
+</html>
