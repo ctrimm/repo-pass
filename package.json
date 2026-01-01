@@ -50,8 +50,8 @@
     "jose": "^5.9.6",
     "lucide-react": "^0.562.0",
     "nanoid": "^5.0.9",
-    "nodemailer": "^6.9.17",
     "postgres": "^3.4.5",
+    "resend": "^4.0.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "redis": "^4.7.0",
@@ -63,7 +63,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
-    "@types/nodemailer": "^6.4.17",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.20.0",

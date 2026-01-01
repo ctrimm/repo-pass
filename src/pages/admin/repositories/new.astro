@@ -1,0 +1,167 @@
+---
+import Layout from '../../../layouts/main.astro';
+import { requireAdmin } from '../../../lib/auth';
+
+// Require admin access
+await requireAdmin(Astro.cookies).catch(() => {
+  return Astro.redirect('/');
+});
+---
+
+<Layout title="Add Repository - RepoPass Admin">
+  <div class="min-h-screen bg-gray-50">
+    <header class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <h1 class="text-2xl font-bold text-gray-900">Add Repository</h1>
+      </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="bg-white rounded-lg shadow p-6">
+        <form id="add-repo-form" class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">GitHub Owner</label>
+            <input
+              type="text"
+              name="githubOwner"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+              placeholder="e.g., ctrimm"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Repository Name</label>
+            <input
+              type="text"
+              name="githubRepoName"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+              placeholder="e.g., premium-astro-theme"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Display Name</label>
+            <input
+              type="text"
+              name="displayName"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+              placeholder="e.g., Premium Astro Theme"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Description</label>
+            <textarea
+              name="description"
+              rows="3"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+              placeholder="A beautiful, production-ready theme..."
+            ></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Price (USD)</label>
+            <input
+              type="number"
+              name="price"
+              required
+              min="1"
+              step="0.01"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+              placeholder="49.00"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Pricing Type</label>
+            <select
+              name="pricingType"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+            >
+              <option value="one-time">One-time Purchase</option>
+              <option value="subscription">Subscription</option>
+            </select>
+          </div>
+
+          <div id="subscription-options" class="hidden">
+            <label class="block text-sm font-medium text-gray-700">Billing Interval</label>
+            <select
+              name="subscriptionCadence"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+            >
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+
+          <div class="flex gap-4">
+            <button
+              type="submit"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+            >
+              Create Repository
+            </button>
+            <a
+              href="/admin"
+              class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-medium"
+            >
+              Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  const form = document.getElementById('add-repo-form') as HTMLFormElement;
+  const pricingType = form.querySelector('[name="pricingType"]') as HTMLSelectElement;
+  const subscriptionOptions = document.getElementById('subscription-options');
+
+  pricingType.addEventListener('change', () => {
+    if (pricingType.value === 'subscription') {
+      subscriptionOptions?.classList.remove('hidden');
+    } else {
+      subscriptionOptions?.classList.add('hidden');
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(form);
+    const price = parseFloat(formData.get('price') as string);
+
+    const data = {
+      githubOwner: formData.get('githubOwner'),
+      githubRepoName: formData.get('githubRepoName'),
+      displayName: formData.get('displayName'),
+      description: formData.get('description'),
+      priceCents: Math.round(price * 100),
+      pricingType: formData.get('pricingType'),
+      subscriptionCadence: formData.get('pricingType') === 'subscription' ? formData.get('subscriptionCadence') : undefined,
+    };
+
+    try {
+      const response = await fetch('/api/admin/repositories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        window.location.href = '/admin';
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error || 'Failed to create repository'}`);
+      }
+    } catch (error) {
+      alert('Error creating repository');
+      console.error(error);
+    }
+  });
+</script>
