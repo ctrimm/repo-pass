@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, repositories, pricingHistory } from '../../../../db';
+import { db, repositories, pricingHistory, purchases } from '../../../../db';
 import { eq, desc, isNull } from 'drizzle-orm';
 import { requireAdmin } from '../../../../lib/auth';
 
@@ -31,7 +31,7 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
     // Get purchase stats
     const stats = await db.query.purchases.findMany({
-      where: eq(db.purchases.repositoryId, params.id!),
+      where: eq(purchases.repositoryId, params.id!),
     });
 
     const totalPurchases = stats.length;

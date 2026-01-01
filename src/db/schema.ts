@@ -1,5 +1,5 @@
 import { pgTable, uuid, varchar, text, integer, boolean, timestamp, pgEnum, check, unique } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 // Enums
 export const roleEnum = pgEnum('role', ['admin', 'creator', 'none']);
@@ -54,7 +54,7 @@ export const repositories = pgTable('repositories', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   uniqueGithubRepo: unique('unique_github_repo').on(table.githubOwner, table.githubRepoName),
-  priceCentsCheck: check('price_cents_check', `price_cents >= 0`),
+  priceCentsCheck: check('price_cents_check', sql`price_cents >= 0`),
 }));
 
 // Products table (Stripe mapping)

@@ -45,12 +45,17 @@ export const POST: APIRoute = async ({ request }) => {
       .returning();
 
     // Create Stripe checkout session
+    // Note: 'custom' cadence is handled differently, not supported in Stripe checkout
+    const subscriptionCadence = repository.subscriptionCadence === 'monthly' || repository.subscriptionCadence === 'yearly'
+      ? repository.subscriptionCadence
+      : undefined;
+
     const { sessionId, sessionUrl } = await createCheckoutSession({
       repositoryId: repository.id,
       repositoryName: repository.displayName,
       priceCents: repository.priceCents,
       pricingType: repository.pricingType,
-      subscriptionCadence: repository.subscriptionCadence || undefined,
+      subscriptionCadence,
       customerEmail: email,
       githubUsername,
       successUrl: `${env.SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,

@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { db, purchases, accessLogs } from '../../../db';
+import { db, purchases, accessLogs, repositories } from '../../../db';
 import { eq } from 'drizzle-orm';
 import { verifyWebhookSignature } from '../../../lib/stripe';
 import { env } from '../../../lib/env';
@@ -68,7 +68,7 @@ export const POST: APIRoute = async ({ request }) => {
 
         // Get repository details
         const repository = await db.query.repositories.findFirst({
-          where: eq(db.repositories.id, purchase.repositoryId),
+          where: eq(repositories.id, purchase.repositoryId),
         });
 
         if (!repository) {
@@ -226,7 +226,7 @@ export const POST: APIRoute = async ({ request }) => {
 
         // Get repository details
         const repository = await db.query.repositories.findFirst({
-          where: eq(db.repositories.id, purchase.repositoryId),
+          where: eq(repositories.id, purchase.repositoryId),
         });
 
         if (!repository) {
@@ -302,7 +302,7 @@ export const POST: APIRoute = async ({ request }) => {
 
           if (purchase) {
             const repository = await db.query.repositories.findFirst({
-              where: eq(db.repositories.id, purchase.repositoryId),
+              where: eq(repositories.id, purchase.repositoryId),
             });
 
             if (repository) {
