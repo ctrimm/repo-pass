@@ -1,7 +1,8 @@
 ---
-import Layout from '../../layouts/main.astro';
-import { requireAdmin } from '../../lib/auth';
-import { db, purchases, repositories, accessLogs } from '../../db';
+import Layout from '../../../layouts/main.astro';
+import AdminNav from '../../../components/AdminNav.astro';
+import { requireAdmin } from '../../../lib/auth';
+import { db, purchases, repositories, accessLogs } from '../../../db';
 import { eq, desc } from 'drizzle-orm';
 
 // Require admin access
@@ -67,16 +68,7 @@ const revokedCustomers = customersWithDetails.filter(c => c.accessStatus === 're
 
 <Layout title="Customers - RepoPass Admin">
   <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <header class="bg-white shadow">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">Customers</h1>
-          <p class="text-sm text-gray-600 mt-1">Manage customer access and purchases</p>
-        </div>
-        <a href="/admin" class="text-blue-600 hover:text-blue-700">← Back to Dashboard</a>
-      </div>
-    </header>
+    <AdminNav />
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Stats -->

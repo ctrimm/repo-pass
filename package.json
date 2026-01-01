@@ -51,6 +51,7 @@
     "lucide-react": "^0.562.0",
     "nanoid": "^5.0.9",
     "postgres": "^3.4.5",
+    "posthog-js": "^1.205.0",
     "resend": "^4.0.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

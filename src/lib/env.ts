@@ -33,6 +33,10 @@ const envSchema = z.object({
 
   // Admin
   ADMIN_EMAIL: z.string().email(),
+
+  // Analytics (PostHog) - Optional
+  POSTHOG_API_KEY: z.string().optional(),
+  POSTHOG_HOST: z.string().url().optional().default('https://app.posthog.com'),
 });
 
 function getEnv() {

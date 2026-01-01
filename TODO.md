@@ -43,7 +43,15 @@
 - [ ] Verify your domain (or use their test domain for now)
 - [ ] Update `EMAIL_FROM` in `.env` to match verified domain
 
-### 5. Environment Setup
+### 5. PostHog Analytics Setup (Optional)
+- [ ] Sign up at https://posthog.com
+- [ ] Go to Project Settings
+- [ ] Copy "Project API Key" → Add to `.env` as `POSTHOG_API_KEY`
+- [ ] Copy "Host" (usually `https://app.posthog.com`) → Add to `.env` as `POSTHOG_HOST`
+- [ ] Analytics will automatically track events (purchases, access grants, etc.)
+- [ ] **Note**: Skip this step for now and add later - analytics are optional
+
+### 6. Environment Setup
 - [ ] Copy `.env.example` to `.env`: `cp .env.example .env`
 - [ ] Fill in all the values from steps 1-4 above
 - [ ] Generate JWT secrets:
@@ -53,13 +61,13 @@
   ```
 - [ ] Update `ADMIN_EMAIL` to your email
 
-### 6. Database Setup
+### 7. Database Setup
 - [ ] Start Docker services: `docker-compose up -d`
 - [ ] Generate migrations: `npm run db:generate`
 - [ ] Run migrations: `npm run db:migrate`
 - [ ] Seed database: `npm run db:seed`
 
-### 7. First Run
+### 8. First Run
 - [ ] Install dependencies: `npm install`
 - [ ] Start dev server: `npm run dev`
 - [ ] Visit http://localhost:4321
@@ -145,6 +153,28 @@ To list your premium theme on your personal site:
 - ✅ Admin session tracking for change attribution
 - ✅ Automatic effective date management
 - ✅ Historical pricing preserved for compliance and analytics
+
+### Polish & UX Improvements (January 2026)
+- ✅ **Admin Navigation Component**
+  - Unified navigation across all admin pages
+  - Dashboard, Customers, and Add Repository links
+  - Active page highlighting
+  - Consistent logout functionality
+
+- ✅ **PostHog Analytics Integration**
+  - Abstraction layer for easy provider swapping
+  - Client-side and server-side event tracking
+  - Predefined event constants for consistency
+  - Optional - can be enabled later with API key
+
+- ✅ **Error Pages**
+  - Custom 404 page with helpful navigation
+  - Custom 500 error page with retry functionality
+  - Consistent branding and design
+
+- ✅ **Dashboard Improvements**
+  - Fixed edit links to point to proper edit page
+  - Improved navigation flow
 
 ---
 
