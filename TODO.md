@@ -96,6 +96,76 @@ To list your premium theme on your personal site:
    - RepoPass automatically adds them as collaborator
    - Customer gets email with access link
 
+## Serverless Deployment with SST v3 (Ion)
+
+### Overview
+Deploy RepoPass as a fully serverless application on AWS using SST v3 (Ion). This eliminates the need for running containers locally and provides auto-scaling, pay-per-use pricing.
+
+### Architecture
+- **App**: Astro SSR on AWS Fargate (serverless containers)
+- **Database**: RDS PostgreSQL with RDS Proxy (serverless-friendly)
+- **Cache**: ElastiCache Redis (serverless)
+- **Secrets**: AWS Secrets Manager via SST Secrets
+- **DNS**: Route 53 + CloudFront CDN
+- **Cost**: ~$20-40/month for low traffic
+
+### Implementation Plan
+
+#### Phase 1: SST Setup
+- [ ] Install SST v3: `npm install -D sst@latest`
+- [ ] Initialize SST: `npx sst init`
+- [ ] Create `sst.config.ts` with basic config
+- [ ] Add SST types to `tsconfig.json`
+- [ ] Update `.gitignore` for SST artifacts
+
+#### Phase 2: Infrastructure Configuration
+- [ ] Configure VPC for database/Redis
+- [ ] Set up RDS PostgreSQL with Proxy
+- [ ] Configure ElastiCache Redis cluster
+- [ ] Set up secrets management (JWT, Stripe, GitHub, etc.)
+- [ ] Link resources to Astro app
+
+#### Phase 3: Astro Deployment Setup
+- [ ] Configure `aws.Astro` component for SSR
+- [ ] Set up environment variable linking
+- [ ] Configure custom domain (optional)
+- [ ] Set up CloudFront CDN
+
+#### Phase 4: Database Migration
+- [ ] Update Drizzle to use RDS connection
+- [ ] Create migration script for production
+- [ ] Set up database seeding for prod
+
+#### Phase 5: Testing & Deployment
+- [ ] Test local SST dev mode
+- [ ] Deploy to staging environment
+- [ ] Run smoke tests
+- [ ] Deploy to production
+- [ ] Set up GitHub Actions for CI/CD
+
+### Commands
+```bash
+# Development
+npx sst dev              # Start local dev with AWS resources
+
+# Deployment
+npx sst deploy --stage production
+
+# Secrets management
+npx sst secret set JWT_SECRET <value>
+npx sst secret set STRIPE_SECRET_KEY <value>
+
+# Database
+npx sst shell             # Connect to deployed resources
+npm run db:migrate        # Run migrations against prod
+```
+
+### Resources
+- [SST v3 Documentation](https://sst.dev/docs)
+- [Astro Component](https://sst.dev/docs/component/aws/astro/)
+- [PostgreSQL Component](https://sst.dev/docs/component/aws/postgres/)
+- [Environment Variables](https://sst.dev/docs/environment-variables/)
+
 ## Notes
 
 - **Development**: Use Stripe test mode and test cards (4242 4242 4242 4242)
@@ -103,7 +173,7 @@ To list your premium theme on your personal site:
   - Update OAuth callback URL to production domain
   - Use Stripe live mode keys
   - Update SITE_URL in .env
-  - Deploy to AWS (we can set this up later with SST)
+  - Deploy with SST (see above)
 
 ## Troubleshooting
 

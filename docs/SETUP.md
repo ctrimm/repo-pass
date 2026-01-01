@@ -57,12 +57,9 @@ STRIPE_SECRET_KEY=sk_test_xxxxx
 STRIPE_PUBLISHABLE_KEY=pk_test_xxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxx
 
-# Email (AWS SES or SendGrid)
-EMAIL_PROVIDER=ses # or 'sendgrid'
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your_aws_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret
-SENDGRID_API_KEY=your_sendgrid_key # if using SendGrid
+# Email (Resend)
+RESEND_API_KEY=re_xxxxx
+EMAIL_FROM=noreply@repopass.com
 
 # Auth
 JWT_SECRET=your_random_jwt_secret_min_32_chars
@@ -70,6 +67,10 @@ SESSION_SECRET=your_random_session_secret
 
 # Admin
 ADMIN_EMAIL=cory@example.com
+
+# Analytics (PostHog) - Optional
+POSTHOG_API_KEY=phc_xxxxx
+POSTHOG_HOST=https://app.posthog.com
 ```
 
 ### 4. Start Local Database (Docker)
@@ -167,37 +168,43 @@ Copy the webhook signing secret to `.env` as `STRIPE_WEBHOOK_SECRET`.
 
 Keep this terminal running while developing.
 
-## Email Setup
+## Email Setup (Resend)
 
-### Option 1: AWS SES (Production-ready)
+### 1. Create Resend Account
 
-1. Create AWS account
-2. Set up AWS SES in your region
-3. Verify sender email address
-4. Get AWS credentials (IAM user with SES permissions)
-5. Add to `.env`
+Sign up at [https://resend.com](https://resend.com)
 
-### Option 2: SendGrid (Easier for development)
+### 2. Get API Key
 
-1. Sign up at [https://sendgrid.com](https://sendgrid.com)
-2. Create API key
-3. Verify sender email
-4. Add to `.env`
+1. Go to API Keys: https://resend.com/api-keys
+2. Click "Create API Key"
+3. Copy key and add to `.env` as `RESEND_API_KEY`
 
-### Option 3: MailDev (Local testing only)
+### 3. Verify Domain (Optional for production)
 
-```bash
-npm install -g maildev
-maildev
-```
+1. Go to Domains in Resend dashboard
+2. Add your domain
+3. Add DNS records as instructed
+4. Verify domain
+5. Update `EMAIL_FROM` in `.env` to use your domain
 
-Visit: `http://localhost:1080` to view emails
+**For Development**: You can use Resend's test domain without verification.
 
-Update `.env`:
-```bash
-EMAIL_PROVIDER=maildev
-MAILDEV_SMTP_PORT=1025
-```
+## Analytics Setup (PostHog) - Optional
+
+### 1. Create PostHog Account
+
+Sign up at [https://posthog.com](https://posthog.com)
+
+### 2. Get API Key
+
+1. Go to Project Settings
+2. Copy "Project API Key"
+3. Add to `.env` as `POSTHOG_API_KEY`
+4. Copy "Host" (usually `https://app.posthog.com`)
+5. Add to `.env` as `POSTHOG_HOST`
+
+**Note**: Analytics are completely optional. The app works without PostHog configured.
 
 ## Database Management
 

@@ -1,5 +1,6 @@
 // Environment configuration with validation
 import { z } from 'zod';
+import { getEnv as getSSTEnv, isSST } from './sst';
 
 const envSchema = z.object({
   // Application
@@ -41,7 +42,9 @@ const envSchema = z.object({
 
 function getEnv() {
   try {
-    return envSchema.parse(process.env);
+    // Use SST resources if available, otherwise use process.env
+    const envSource = isSST() ? getSSTEnv() : process.env;
+    return envSchema.parse(envSource);
   } catch (error) {
     if (error instanceof z.ZodError) {
       const missing = error.errors.map(e => e.path.join('.')).join(', ');
