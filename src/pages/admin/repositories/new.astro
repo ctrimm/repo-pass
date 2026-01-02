@@ -58,8 +58,7 @@ await requireAdmin(Astro.cookies).catch(() => {
               name="description"
               rows="3"
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
-              placeholder="A beautiful, production-ready theme..."
-            ></textarea>
+              placeholder="A beautiful, production-ready theme..."></textarea>
           </div>
 
           <div>
@@ -143,7 +142,10 @@ await requireAdmin(Astro.cookies).catch(() => {
       description: formData.get('description'),
       priceCents: Math.round(price * 100),
       pricingType: formData.get('pricingType'),
-      subscriptionCadence: formData.get('pricingType') === 'subscription' ? formData.get('subscriptionCadence') : undefined,
+      subscriptionCadence:
+        formData.get('pricingType') === 'subscription'
+          ? formData.get('subscriptionCadence')
+          : undefined,
     };
 
     try {

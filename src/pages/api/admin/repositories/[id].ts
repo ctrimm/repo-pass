@@ -125,10 +125,9 @@ export const PATCH: APIRoute = async ({ params, request, cookies }) => {
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request', details: error.errors }),
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: 'Invalid request', details: error.errors }), {
+        status: 400,
+      });
     }
 
     return new Response(JSON.stringify({ error: error.message }), {
@@ -157,13 +156,10 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
       });
     }
 
-    return new Response(
-      JSON.stringify({ message: 'Repository deactivated', id: updated.id }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(JSON.stringify({ message: 'Repository deactivated', id: updated.id }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: error.message.includes('Unauthorized') ? 401 : 500,

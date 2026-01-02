@@ -48,10 +48,9 @@ export const POST: APIRoute = async ({ request }) => {
     });
 
     if (!repository || !repository.active) {
-      return new Response(
-        JSON.stringify({ error: 'Repository not found or inactive' }),
-        { status: 404 }
-      );
+      return new Response(JSON.stringify({ error: 'Repository not found or inactive' }), {
+        status: 404,
+      });
     }
 
     // Create pending purchase record
@@ -70,9 +69,10 @@ export const POST: APIRoute = async ({ request }) => {
 
     // Create Stripe checkout session
     // Note: 'custom' cadence is handled differently, not supported in Stripe checkout
-    const subscriptionCadence = repository.subscriptionCadence === 'monthly' || repository.subscriptionCadence === 'yearly'
-      ? repository.subscriptionCadence
-      : undefined;
+    const subscriptionCadence =
+      repository.subscriptionCadence === 'monthly' || repository.subscriptionCadence === 'yearly'
+        ? repository.subscriptionCadence
+        : undefined;
 
     const { sessionId, sessionUrl } = await createCheckoutSession({
       repositoryId: repository.id,
@@ -119,15 +119,11 @@ export const POST: APIRoute = async ({ request }) => {
     console.error('Checkout error:', error);
 
     if (error instanceof z.ZodError) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request', details: error.errors }),
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: 'Invalid request', details: error.errors }), {
+        status: 400,
+      });
     }
 
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 });
   }
 };

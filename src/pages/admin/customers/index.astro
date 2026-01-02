@@ -20,18 +20,19 @@ let allPurchases = await db.select().from(purchases).orderBy(desc(purchases.crea
 
 // Apply filters
 if (repositoryId) {
-  allPurchases = allPurchases.filter(p => p.repositoryId === repositoryId);
+  allPurchases = allPurchases.filter((p) => p.repositoryId === repositoryId);
 }
 
 if (status) {
-  allPurchases = allPurchases.filter(p => p.accessStatus === status);
+  allPurchases = allPurchases.filter((p) => p.accessStatus === status);
 }
 
 if (search) {
   const searchLower = search.toLowerCase();
-  allPurchases = allPurchases.filter(p =>
-    p.email.toLowerCase().includes(searchLower) ||
-    p.githubUsername.toLowerCase().includes(searchLower)
+  allPurchases = allPurchases.filter(
+    (p) =>
+      p.email.toLowerCase().includes(searchLower) ||
+      p.githubUsername.toLowerCase().includes(searchLower)
   );
 }
 
@@ -61,9 +62,9 @@ const allRepositories = await db.select().from(repositories).orderBy(repositorie
 
 // Calculate stats
 const totalCustomers = customersWithDetails.length;
-const activeCustomers = customersWithDetails.filter(c => c.accessStatus === 'active').length;
-const pendingCustomers = customersWithDetails.filter(c => c.accessStatus === 'pending').length;
-const revokedCustomers = customersWithDetails.filter(c => c.accessStatus === 'revoked').length;
+const activeCustomers = customersWithDetails.filter((c) => c.accessStatus === 'active').length;
+const pendingCustomers = customersWithDetails.filter((c) => c.accessStatus === 'pending').length;
+const revokedCustomers = customersWithDetails.filter((c) => c.accessStatus === 'revoked').length;
 ---
 
 <Layout title="Customers - RepoPass Admin">
@@ -112,11 +113,13 @@ const revokedCustomers = customersWithDetails.filter(c => c.accessStatus === 're
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Repositories</option>
-              {allRepositories.map((repo) => (
-                <option value={repo.id} selected={repositoryId === repo.id}>
-                  {repo.displayName}
-                </option>
-              ))}
+              {
+                allRepositories.map((repo) => (
+                  <option value={repo.id} selected={repositoryId === repo.id}>
+                    {repo.displayName}
+                  </option>
+                ))
+              }
             </select>
           </div>
 
@@ -156,100 +159,120 @@ const revokedCustomers = customersWithDetails.filter(c => c.accessStatus === 're
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Customer
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Repository
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Type
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Amount
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Status
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Purchase Date
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              {customersWithDetails.length === 0 ? (
-                <tr>
-                  <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                    No customers found
-                  </td>
-                </tr>
-              ) : (
-                customersWithDetails.map((customer) => (
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex flex-col">
-                        <div class="text-sm font-medium text-gray-900">
-                          {customer.githubUsername}
-                        </div>
-                        <div class="text-sm text-gray-500">{customer.email}</div>
-                      </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex flex-col">
-                        <div class="text-sm font-medium text-gray-900">
-                          {customer.repositoryName}
-                        </div>
-                        <div class="text-sm text-gray-500">
-                          {customer.githubOwner}/{customer.githubRepoName}
-                        </div>
-                      </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {customer.purchaseType === 'subscription' ? 'Subscription' : 'One-time'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${(customer.amountCents / 100).toFixed(2)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class={`px-2 py-1 text-xs rounded-full font-medium ${
-                        customer.accessStatus === 'active' ? 'bg-green-100 text-green-800' :
-                        customer.accessStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {customer.accessStatus}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(customer.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <a
-                        href={`/admin/customers/${customer.id}`}
-                        class="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        View Details
-                      </a>
-                      {customer.accessStatus === 'active' && (
-                        <button
-                          onclick={`revokeAccess('${customer.id}', '${customer.githubUsername}')`}
-                          class="text-red-600 hover:text-red-900"
-                        >
-                          Revoke
-                        </button>
-                      )}
+              {
+                customersWithDetails.length === 0 ? (
+                  <tr>
+                    <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                      No customers found
                     </td>
                   </tr>
-                ))
-              )}
+                ) : (
+                  customersWithDetails.map((customer) => (
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex flex-col">
+                          <div class="text-sm font-medium text-gray-900">
+                            {customer.githubUsername}
+                          </div>
+                          <div class="text-sm text-gray-500">{customer.email}</div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex flex-col">
+                          <div class="text-sm font-medium text-gray-900">
+                            {customer.repositoryName}
+                          </div>
+                          <div class="text-sm text-gray-500">
+                            {customer.githubOwner}/{customer.githubRepoName}
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {customer.purchaseType === 'subscription' ? 'Subscription' : 'One-time'}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${(customer.amountCents / 100).toFixed(2)}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span
+                          class={`px-2 py-1 text-xs rounded-full font-medium ${
+                            customer.accessStatus === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : customer.accessStatus === 'pending'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {customer.accessStatus}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(customer.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <a
+                          href={`/admin/customers/${customer.id}`}
+                          class="text-blue-600 hover:text-blue-900 mr-3"
+                        >
+                          View Details
+                        </a>
+                        {customer.accessStatus === 'active' && (
+                          <button
+                            onclick={`revokeAccess('${customer.id}', '${customer.githubUsername}')`}
+                            class="text-red-600 hover:text-red-900"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )
+              }
             </tbody>
           </table>
         </div>
@@ -260,7 +283,11 @@ const revokedCustomers = customersWithDetails.filter(c => c.accessStatus === 're
 
 <script>
   async function revokeAccess(purchaseId: string, username: string) {
-    if (!confirm(`Are you sure you want to revoke access for ${username}? This will remove them as a collaborator.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to revoke access for ${username}? This will remove them as a collaborator.`
+      )
+    ) {
       return;
     }
 

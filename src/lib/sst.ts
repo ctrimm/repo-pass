@@ -5,13 +5,13 @@
  * and fallback to environment variables for local development.
  */
 
-import { Resource } from "sst";
+import { Resource } from 'sst';
 
 /**
  * Check if running in SST environment
  */
 export function isSST(): boolean {
-  return typeof Resource !== "undefined" && Resource !== null;
+  return typeof Resource !== 'undefined' && Resource !== null;
 }
 
 /**
@@ -26,7 +26,7 @@ export function getDatabaseUrl(): string {
       // Fall through to env var
     }
   }
-  return process.env.DATABASE_URL || "";
+  return process.env.DATABASE_URL || '';
 }
 
 /**
@@ -42,7 +42,7 @@ export function getSecret(sstName: string, envName: string): string {
       // Fall through to env var
     }
   }
-  return process.env[envName] || "";
+  return process.env[envName] || '';
 }
 
 /**
@@ -54,23 +54,23 @@ export function getEnv() {
     DATABASE_URL: getDatabaseUrl(),
 
     // Secrets
-    JWT_SECRET: getSecret("JwtSecret", "JWT_SECRET"),
-    SESSION_SECRET: getSecret("SessionSecret", "SESSION_SECRET"),
-    GITHUB_CLIENT_SECRET: getSecret("GitHubClientSecret", "GITHUB_CLIENT_SECRET"),
-    GITHUB_PERSONAL_ACCESS_TOKEN: getSecret("GitHubPAT", "GITHUB_PERSONAL_ACCESS_TOKEN"),
-    STRIPE_SECRET_KEY: getSecret("StripeSecretKey", "STRIPE_SECRET_KEY"),
-    STRIPE_WEBHOOK_SECRET: getSecret("StripeWebhookSecret", "STRIPE_WEBHOOK_SECRET"),
-    RESEND_API_KEY: getSecret("ResendApiKey", "RESEND_API_KEY"),
-    POSTHOG_API_KEY: getSecret("PostHogApiKey", "POSTHOG_API_KEY"),
-    ADMIN_EMAIL: getSecret("AdminEmail", "ADMIN_EMAIL"),
+    JWT_SECRET: getSecret('JwtSecret', 'JWT_SECRET'),
+    SESSION_SECRET: getSecret('SessionSecret', 'SESSION_SECRET'),
+    GITHUB_CLIENT_SECRET: getSecret('GitHubClientSecret', 'GITHUB_CLIENT_SECRET'),
+    GITHUB_PERSONAL_ACCESS_TOKEN: getSecret('GitHubPAT', 'GITHUB_PERSONAL_ACCESS_TOKEN'),
+    STRIPE_SECRET_KEY: getSecret('StripeSecretKey', 'STRIPE_SECRET_KEY'),
+    STRIPE_WEBHOOK_SECRET: getSecret('StripeWebhookSecret', 'STRIPE_WEBHOOK_SECRET'),
+    RESEND_API_KEY: getSecret('ResendApiKey', 'RESEND_API_KEY'),
+    POSTHOG_API_KEY: getSecret('PostHogApiKey', 'POSTHOG_API_KEY'),
+    ADMIN_EMAIL: getSecret('AdminEmail', 'ADMIN_EMAIL'),
 
     // Environment variables (not secrets)
-    NODE_ENV: process.env.NODE_ENV || "development",
-    SITE_URL: process.env.SITE_URL || "http://localhost:4321",
-    PORT: process.env.PORT || "4321",
-    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || "",
-    STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY || "",
-    EMAIL_FROM: process.env.EMAIL_FROM || "",
-    POSTHOG_HOST: process.env.POSTHOG_HOST || "https://app.posthog.com",
+    NODE_ENV: process.env.NODE_ENV || 'development',
+    SITE_URL: process.env.SITE_URL || 'http://localhost:4321',
+    PORT: process.env.PORT || '4321',
+    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || '',
+    STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY || '',
+    EMAIL_FROM: process.env.EMAIL_FROM || '',
+    POSTHOG_HOST: process.env.POSTHOG_HOST || 'https://app.posthog.com',
   };
 }

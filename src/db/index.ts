@@ -4,7 +4,8 @@ import * as schema from './schema';
 import { getDatabaseUrl } from '../lib/sst';
 
 // Database connection - uses SST resource in production, falls back to env var in dev
-const connectionString = getDatabaseUrl() || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
+const connectionString =
+  getDatabaseUrl() || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
 
 // Create postgres client
 const client = postgres(connectionString, {

@@ -96,10 +96,7 @@ export const emailTemplates = {
     `,
   }),
 
-  accessRevoked: (data: {
-    repositoryName: string;
-    reason?: string;
-  }) => ({
+  accessRevoked: (data: { repositoryName: string; reason?: string }) => ({
     subject: `Access Revoked - ${data.repositoryName}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

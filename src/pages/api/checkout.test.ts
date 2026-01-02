@@ -20,10 +20,12 @@ vi.mock('../../db', () => ({
     },
     insert: vi.fn().mockReturnValue({
       values: vi.fn().mockReturnValue({
-        returning: vi.fn().mockResolvedValue([{
-          id: 'purchase-123',
-          status: 'pending',
-        }]),
+        returning: vi.fn().mockResolvedValue([
+          {
+            id: 'purchase-123',
+            status: 'pending',
+          },
+        ]),
       }),
     }),
   },

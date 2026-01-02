@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import { db, repositories, pricingHistory } from '../../../../db';
-import { eq, desc} from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { requireAdmin } from '../../../../lib/auth';
 
 const createRepositorySchema = z.object({
@@ -81,10 +81,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     console.error('Create repository error:', error);
 
     if (error instanceof z.ZodError) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request', details: error.errors }),
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: 'Invalid request', details: error.errors }), {
+        status: 400,
+      });
     }
 
     return new Response(JSON.stringify({ error: error.message }), {

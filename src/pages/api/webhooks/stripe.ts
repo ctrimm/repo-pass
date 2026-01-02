@@ -379,9 +379,6 @@ export const POST: APIRoute = async ({ request }) => {
     });
   } catch (error: any) {
     console.error('Webhook error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 400 }
-    );
+    return new Response(JSON.stringify({ error: error.message }), { status: 400 });
   }
 };

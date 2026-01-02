@@ -46,7 +46,7 @@ describe('Rate Limiting', () => {
     expect(third.allowed).toBe(false);
 
     // Wait for window to expire
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Should be allowed again
     const fourth = checkRateLimit(key, 2, 100);

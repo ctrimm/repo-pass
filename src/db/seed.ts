@@ -41,7 +41,8 @@ async function seed() {
           githubRepoName: 'premium-astro-theme',
           slug: 'premium-astro-theme',
           displayName: 'Premium Astro Theme',
-          description: 'A beautiful, production-ready Astro theme with dark mode, animations, and more.',
+          description:
+            'A beautiful, production-ready Astro theme with dark mode, animations, and more.',
           pricingType: 'one-time',
           priceCents: 4900, // $49.00
           active: true,

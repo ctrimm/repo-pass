@@ -4,7 +4,8 @@ import postgres from 'postgres';
 import { getDatabaseUrl } from '../lib/sst';
 
 // Uses SST resource in production, falls back to env var in dev
-const connectionString = getDatabaseUrl() || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
+const connectionString =
+  getDatabaseUrl() || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
 
 async function main() {
   console.log('🚀 Running migrations...');

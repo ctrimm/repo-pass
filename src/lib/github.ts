@@ -36,11 +36,7 @@ export async function checkUserExists(username: string): Promise<boolean> {
 /**
  * Add a collaborator to a repository with read-only access
  */
-export async function addCollaborator({
-  owner,
-  repo,
-  username,
-}: AddCollaboratorOptions) {
+export async function addCollaborator({ owner, repo, username }: AddCollaboratorOptions) {
   try {
     // First check if user exists
     const userExists = await checkUserExists(username);
@@ -66,11 +62,7 @@ export async function addCollaborator({
 /**
  * Remove a collaborator from a repository
  */
-export async function removeCollaborator({
-  owner,
-  repo,
-  username,
-}: RemoveCollaboratorOptions) {
+export async function removeCollaborator({ owner, repo, username }: RemoveCollaboratorOptions) {
   try {
     await octokit.repos.removeCollaborator({
       owner,

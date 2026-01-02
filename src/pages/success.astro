@@ -5,12 +5,17 @@ const sessionId = Astro.url.searchParams.get('session_id');
 ---
 
 <Layout title="Purchase Successful - RepoPass">
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4">
+  <div
+    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4"
+  >
     <div class="max-w-2xl w-full">
       <div class="bg-white rounded-lg shadow-xl p-8 text-center">
-        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div
+          class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
+        >
           <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"
+            ></path>
           </svg>
         </div>
 
@@ -28,7 +33,10 @@ const sessionId = Astro.url.searchParams.get('session_id');
             </li>
             <li class="flex items-start">
               <span class="font-medium mr-2">2.</span>
-              <span>We're adding you as a collaborator to the repository (this takes less than 5 minutes)</span>
+              <span
+                >We're adding you as a collaborator to the repository (this takes less than 5
+                minutes)</span
+              >
             </li>
             <li class="flex items-start">
               <span class="font-medium mr-2">3.</span>
@@ -48,16 +56,10 @@ const sessionId = Astro.url.searchParams.get('session_id');
           >
             Go to GitHub
           </a>
-          <p class="text-sm text-gray-500">
-            Check your email for detailed instructions
-          </p>
+          <p class="text-sm text-gray-500">Check your email for detailed instructions</p>
         </div>
 
-        {sessionId && (
-          <p class="mt-6 text-xs text-gray-400">
-            Session ID: {sessionId}
-          </p>
-        )}
+        {sessionId && <p class="mt-6 text-xs text-gray-400">Session ID: {sessionId}</p>}
       </div>
     </div>
   </div>

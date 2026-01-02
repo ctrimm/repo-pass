@@ -31,7 +31,9 @@ const repository = await db.query.repositories.findFirst({
 });
 
 // Get access logs
-const logs = await db.select().from(accessLogs)
+const logs = await db
+  .select()
+  .from(accessLogs)
   .where(eq(accessLogs.purchaseId, purchase.id))
   .orderBy(desc(accessLogs.createdAt));
 ---
@@ -51,7 +53,11 @@ const logs = await db.select().from(accessLogs)
               <div>
                 <dt class="text-sm font-medium text-gray-500">GitHub Username</dt>
                 <dd class="mt-1 text-sm text-gray-900">
-                  <a href={`https://github.com/${purchase.githubUsername}`} target="_blank" class="text-blue-600 hover:text-blue-700">
+                  <a
+                    href={`https://github.com/${purchase.githubUsername}`}
+                    target="_blank"
+                    class="text-blue-600 hover:text-blue-700"
+                  >
                     {purchase.githubUsername}
                   </a>
                 </dd>
@@ -66,16 +72,22 @@ const logs = await db.select().from(accessLogs)
               </div>
               <div>
                 <dt class="text-sm font-medium text-gray-500">Amount Paid</dt>
-                <dd class="mt-1 text-sm text-gray-900">${(purchase.amountCents / 100).toFixed(2)}</dd>
+                <dd class="mt-1 text-sm text-gray-900">
+                  ${(purchase.amountCents / 100).toFixed(2)}
+                </dd>
               </div>
               <div>
                 <dt class="text-sm font-medium text-gray-500">Status</dt>
                 <dd class="mt-1">
-                  <span class={`px-2 py-1 text-xs rounded-full font-medium ${
-                    purchase.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    purchase.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
+                  <span
+                    class={`px-2 py-1 text-xs rounded-full font-medium ${
+                      purchase.status === 'completed'
+                        ? 'bg-green-100 text-green-800'
+                        : purchase.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                    }`}
+                  >
                     {purchase.status}
                   </span>
                 </dd>
@@ -83,11 +95,15 @@ const logs = await db.select().from(accessLogs)
               <div>
                 <dt class="text-sm font-medium text-gray-500">Access Status</dt>
                 <dd class="mt-1">
-                  <span class={`px-2 py-1 text-xs rounded-full font-medium ${
-                    purchase.accessStatus === 'active' ? 'bg-green-100 text-green-800' :
-                    purchase.accessStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
+                  <span
+                    class={`px-2 py-1 text-xs rounded-full font-medium ${
+                      purchase.accessStatus === 'active'
+                        ? 'bg-green-100 text-green-800'
+                        : purchase.accessStatus === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                    }`}
+                  >
                     {purchase.accessStatus}
                   </span>
                 </dd>
@@ -96,48 +112,66 @@ const logs = await db.select().from(accessLogs)
           </div>
 
           <!-- Repository Info -->
-          {repository && (
-            <div class="bg-white rounded-lg shadow p-6">
-              <h2 class="text-lg font-semibold text-gray-900 mb-4">Repository Access</h2>
-              <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <dt class="text-sm font-medium text-gray-500">Repository</dt>
-                  <dd class="mt-1 text-sm text-gray-900">{repository.displayName}</dd>
-                </div>
-                <div>
-                  <dt class="text-sm font-medium text-gray-500">GitHub Repo</dt>
-                  <dd class="mt-1 text-sm text-gray-900">
-                    <a href={`https://github.com/${repository.githubOwner}/${repository.githubRepoName}`} target="_blank" class="text-blue-600 hover:text-blue-700">
-                      {repository.githubOwner}/{repository.githubRepoName}
-                    </a>
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          )}
+          {
+            repository && (
+              <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Repository Access</h2>
+                <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Repository</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{repository.displayName}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">GitHub Repo</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                      <a
+                        href={`https://github.com/${repository.githubOwner}/${repository.githubRepoName}`}
+                        target="_blank"
+                        class="text-blue-600 hover:text-blue-700"
+                      >
+                        {repository.githubOwner}/{repository.githubRepoName}
+                      </a>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            )
+          }
 
           <!-- Stripe Info -->
           <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Payment Details</h2>
             <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {purchase.stripeCustomerId && (
-                <div>
-                  <dt class="text-sm font-medium text-gray-500">Stripe Customer ID</dt>
-                  <dd class="mt-1 text-sm text-gray-900 font-mono">{purchase.stripeCustomerId}</dd>
-                </div>
-              )}
-              {purchase.stripePaymentIntentId && (
-                <div>
-                  <dt class="text-sm font-medium text-gray-500">Payment Intent ID</dt>
-                  <dd class="mt-1 text-sm text-gray-900 font-mono">{purchase.stripePaymentIntentId}</dd>
-                </div>
-              )}
-              {purchase.stripeSubscriptionId && (
-                <div>
-                  <dt class="text-sm font-medium text-gray-500">Subscription ID</dt>
-                  <dd class="mt-1 text-sm text-gray-900 font-mono">{purchase.stripeSubscriptionId}</dd>
-                </div>
-              )}
+              {
+                purchase.stripeCustomerId && (
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Stripe Customer ID</dt>
+                    <dd class="mt-1 text-sm text-gray-900 font-mono">
+                      {purchase.stripeCustomerId}
+                    </dd>
+                  </div>
+                )
+              }
+              {
+                purchase.stripePaymentIntentId && (
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Payment Intent ID</dt>
+                    <dd class="mt-1 text-sm text-gray-900 font-mono">
+                      {purchase.stripePaymentIntentId}
+                    </dd>
+                  </div>
+                )
+              }
+              {
+                purchase.stripeSubscriptionId && (
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Subscription ID</dt>
+                    <dd class="mt-1 text-sm text-gray-900 font-mono">
+                      {purchase.stripeSubscriptionId}
+                    </dd>
+                  </div>
+                )
+              }
             </dl>
           </div>
 
@@ -147,41 +181,53 @@ const logs = await db.select().from(accessLogs)
               <h2 class="text-lg font-semibold text-gray-900">Activity Log</h2>
             </div>
             <div class="p-6">
-              {logs.length === 0 ? (
-                <p class="text-gray-500 text-center py-4">No activity logs found</p>
-              ) : (
-                <div class="space-y-4">
-                  {logs.map((log) => (
-                    <div class="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
-                      <div class={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
-                        log.status === 'success' ? 'bg-green-500' :
-                        log.status === 'failed' ? 'bg-red-500' :
-                        'bg-yellow-500'
-                      }`}></div>
-                      <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between">
-                          <p class="text-sm font-medium text-gray-900">
-                            {log.action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              {
+                logs.length === 0 ? (
+                  <p class="text-gray-500 text-center py-4">No activity logs found</p>
+                ) : (
+                  <div class="space-y-4">
+                    {logs.map((log) => (
+                      <div class="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
+                        <div
+                          class={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
+                            log.status === 'success'
+                              ? 'bg-green-500'
+                              : log.status === 'failed'
+                                ? 'bg-red-500'
+                                : 'bg-yellow-500'
+                          }`}
+                        />
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center justify-between">
+                            <p class="text-sm font-medium text-gray-900">
+                              {log.action
+                                .replace(/_/g, ' ')
+                                .replace(/\b\w/g, (l) => l.toUpperCase())}
+                            </p>
+                            <span
+                              class={`px-2 py-1 text-xs rounded-full ${
+                                log.status === 'success'
+                                  ? 'bg-green-100 text-green-800'
+                                  : log.status === 'failed'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                              }`}
+                            >
+                              {log.status}
+                            </span>
+                          </div>
+                          {log.errorMessage && (
+                            <p class="mt-1 text-sm text-red-600">{log.errorMessage}</p>
+                          )}
+                          <p class="mt-1 text-xs text-gray-500">
+                            {new Date(log.createdAt).toLocaleString()}
                           </p>
-                          <span class={`px-2 py-1 text-xs rounded-full ${
-                            log.status === 'success' ? 'bg-green-100 text-green-800' :
-                            log.status === 'failed' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {log.status}
-                          </span>
                         </div>
-                        {log.errorMessage && (
-                          <p class="mt-1 text-sm text-red-600">{log.errorMessage}</p>
-                        )}
-                        <p class="mt-1 text-xs text-gray-500">
-                          {new Date(log.createdAt).toLocaleString()}
-                        </p>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )
+              }
             </div>
           </div>
         </div>
@@ -198,54 +244,64 @@ const logs = await db.select().from(accessLogs)
                   {new Date(purchase.createdAt).toLocaleString()}
                 </dd>
               </div>
-              {purchase.accessGrantedAt && (
-                <div>
-                  <dt class="text-xs text-gray-500">Access Granted</dt>
-                  <dd class="text-sm text-gray-900">
-                    {new Date(purchase.accessGrantedAt).toLocaleString()}
-                  </dd>
-                </div>
-              )}
-              {purchase.revokedAt && (
-                <div>
-                  <dt class="text-xs text-gray-500">Revoked</dt>
-                  <dd class="text-sm text-gray-900">
-                    {new Date(purchase.revokedAt).toLocaleString()}
-                  </dd>
-                </div>
-              )}
+              {
+                purchase.accessGrantedAt && (
+                  <div>
+                    <dt class="text-xs text-gray-500">Access Granted</dt>
+                    <dd class="text-sm text-gray-900">
+                      {new Date(purchase.accessGrantedAt).toLocaleString()}
+                    </dd>
+                  </div>
+                )
+              }
+              {
+                purchase.revokedAt && (
+                  <div>
+                    <dt class="text-xs text-gray-500">Revoked</dt>
+                    <dd class="text-sm text-gray-900">
+                      {new Date(purchase.revokedAt).toLocaleString()}
+                    </dd>
+                  </div>
+                )
+              }
             </dl>
           </div>
 
-          {purchase.revocationReason && (
-            <div class="bg-red-50 rounded-lg border border-red-200 p-6">
-              <h3 class="text-sm font-medium text-red-900 mb-2">Revocation Reason</h3>
-              <p class="text-sm text-red-700">{purchase.revocationReason}</p>
-            </div>
-          )}
+          {
+            purchase.revocationReason && (
+              <div class="bg-red-50 rounded-lg border border-red-200 p-6">
+                <h3 class="text-sm font-medium text-red-900 mb-2">Revocation Reason</h3>
+                <p class="text-sm text-red-700">{purchase.revocationReason}</p>
+              </div>
+            )
+          }
 
           <!-- Actions -->
           <div class="bg-white rounded-lg shadow p-6 space-y-3">
             <h3 class="text-sm font-medium text-gray-500 mb-4">Actions</h3>
 
-            {purchase.accessStatus === 'active' && (
-              <button
-                onclick={`revokeAccess('${purchase.id}', '${purchase.githubUsername}')`}
-                class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-              >
-                Revoke Access
-              </button>
-            )}
+            {
+              purchase.accessStatus === 'active' && (
+                <button
+                  onclick={`revokeAccess('${purchase.id}', '${purchase.githubUsername}')`}
+                  class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                >
+                  Revoke Access
+                </button>
+              )
+            }
 
-            {repository && (
-              <a
-                href={`https://github.com/${repository.githubOwner}/${repository.githubRepoName}/settings/access`}
-                target="_blank"
-                class="block w-full bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium text-center"
-              >
-                View on GitHub
-              </a>
-            )}
+            {
+              repository && (
+                <a
+                  href={`https://github.com/${repository.githubOwner}/${repository.githubRepoName}/settings/access`}
+                  target="_blank"
+                  class="block w-full bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium text-center"
+                >
+                  View on GitHub
+                </a>
+              )
+            }
           </div>
         </div>
       </div>

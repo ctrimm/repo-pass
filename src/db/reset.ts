@@ -4,13 +4,14 @@ import { sql } from 'drizzle-orm';
 import { getDatabaseUrl } from '../lib/sst';
 
 // Uses SST resource in production, falls back to env var in dev
-const connectionString = getDatabaseUrl() || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
+const connectionString =
+  getDatabaseUrl() || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
 
 async function reset() {
   console.log('⚠️  WARNING: This will delete all data from the database!');
   console.log('Resetting database in 3 seconds... Press Ctrl+C to cancel');
 
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 
   const client = postgres(connectionString, { max: 1 });
   const db = drizzle(client);
