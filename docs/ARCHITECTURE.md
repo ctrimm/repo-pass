@@ -16,64 +16,70 @@ RepoPass is a SaaS platform that automates GitHub repository access monetization
 ### Backend
 - **Runtime**: Node.js
 - **API Framework**: Astro API routes
-- **Database**: PostgreSQL (AWS RDS)
-- **ORM**: Drizzle ORM or Prisma (TBD)
-- **Caching**: Redis (AWS ElastiCache)
+- **Database**: PostgreSQL (Neon - Serverless)
+- **ORM**: Drizzle ORM
+- **Caching**: Redis (Upstash - Serverless, optional for MVP)
 
-### Infrastructure (AWS)
-- **Hosting**: AWS via SST (Serverless Stack)
-- **Compute**: Lambda functions
-- **Database**: RDS PostgreSQL
-- **Caching**: ElastiCache (Redis)
-- **Storage**: S3 (cover images, assets)
-- **CDN**: CloudFront
-- **Secrets**: AWS Secrets Manager
-- **Email**: AWS SES or SendGrid
+### Infrastructure (Serverless)
+- **Deployment**: SST v3 (Ion)
+- **Compute**: AWS Lambda functions
+- **Database**: Neon PostgreSQL (serverless, scales to zero)
+- **Caching**: Upstash Redis (serverless, optional)
+- **CDN**: AWS CloudFront
+- **Secrets**: AWS Secrets Manager (via SST)
+- **Cost**: $0-5/month for low traffic
 
 ### External Services
 - **Payments**: Stripe (Checkout, Subscriptions, Webhooks)
 - **Version Control**: GitHub API v3
-- **Email**: AWS SES or SendGrid
+- **Email**: Resend (transactional emails)
+- **Analytics**: PostHog (optional)
 
 ## System Architecture
 
 ```
-┌─────────────────┐
-│   CloudFront    │
-│      (CDN)      │
-└────────┬────────┘
-         │
-┌────────▼────────────────────────────────────┐
-│         Astro Application (SSR)             │
-│  ┌──────────┐  ┌──────────┐  ┌───────────┐ │
-│  │  Public  │  │  Admin   │  │    API    │ │
-│  │  Pages   │  │  Panel   │  │  Routes   │ │
-│  └──────────┘  └──────────┘  └───────────┘ │
-└────────┬────────────────────────────────────┘
-         │
-    ┌────┴────┐
-    ▼         ▼
-┌────────┐ ┌──────────────┐
-│  RDS   │ │   Lambda     │
-│(Postgres)│ │  Functions   │
-└────────┘ └──────────────┘
-    │            │
-    │      ┌─────┴─────┐
-    │      ▼           ▼
-    │   ┌──────┐  ┌────────┐
-    │   │Redis │  │   S3   │
-    │   │Cache │  │Storage │
-    │   └──────┘  └────────┘
-    │
-    └─────────────────────────────────┐
-                                      │
-┌──────────────────────────────────────▼──────┐
-│           External Services                  │
-│  ┌────────┐  ┌────────┐  ┌────────┐        │
-│  │ Stripe │  │ GitHub │  │  SES/  │        │
-│  │   API  │  │   API  │  │SendGrid│        │
-│  └────────┘  └────────┘  └────────┘        │
-└─────────────────────────────────────────────┘
+Ultra-Low-Cost Serverless Stack ($0-5/month)
+
+┌──────────────────────────────────────────────┐
+│           User (Browser/API Client)          │
+└──────────────────┬───────────────────────────┘
+                   │
+           ┌───────▼────────┐
+           │  CloudFront    │  ← AWS (Free: 1TB/month)
+           │     (CDN)      │
+           └───────┬────────┘
+                   │
+    ┌──────────────▼──────────────────┐
+    │   AWS Lambda (SST/Astro SSR)    │  ← AWS (Free: 1M requests/mo)
+    │  ┌────────┐ ┌────────┐ ┌─────┐ │
+    │  │ Public │ │ Admin  │ │ API │ │
+    │  │ Pages  │ │ Panel  │ │ Routes│
+    │  └────────┘ └────────┘ └─────┘ │
+    └──────────────┬──────────────────┘
+                   │
+        ┌──────────┴──────────┐
+        ▼                     ▼
+┌──────────────┐      ┌──────────────┐
+│     Neon     │      │   Upstash    │  ← External (Serverless)
+│  PostgreSQL  │      │    Redis     │  ← Both: FREE tier
+│ (Serverless) │      │  (Optional)  │
+└──────────────┘      └──────────────┘
+        │
+        └─────────────────────────────────────┐
+                                              │
+┌─────────────────────────────────────────────▼─┐
+│            External Services (APIs)           │
+│  ┌────────┐  ┌────────┐  ┌────────┐ ┌──────┐│
+│  │ Stripe │  │ GitHub │  │ Resend │ │PostHog││
+│  │   API  │  │   API  │  │ Email  │ │(opt.)││
+│  └────────┘  └────────┘  └────────┘ └──────┘│
+└───────────────────────────────────────────────┘
+
+Key Benefits:
+✓ Scales to zero when idle (no fixed costs)
+✓ No VPC, NAT Gateway, or always-on resources
+✓ Total cost: $0-5/month for low traffic
+✓ Identical local dev environment (Docker PostgreSQL)
 ```
 
 ## Database Architecture
@@ -94,6 +100,49 @@ repositories (1) ──> (N) products
 repositories (1) ──> (N) purchases
 purchases (1) ──> (N) access_logs
 ```
+
+## Architectural Decisions
+
+### Database: PostgreSQL (Neon) vs DynamoDB
+
+**Decision**: Use PostgreSQL via Neon instead of AWS DynamoDB.
+
+**Rationale**:
+
+#### Why PostgreSQL/Neon:
+1. **Relational data model** - Our schema has clear relationships (users → repositories → purchases → access logs) that map naturally to SQL
+2. **Complex queries** - Need JOINs for reporting (e.g., "show all purchases with repository details and user info")
+3. **Type safety** - Drizzle ORM provides excellent TypeScript integration with schema inference
+4. **Developer experience** - SQL queries are simpler to write and maintain than DynamoDB single-table design
+5. **Sufficient free tier** - Neon's free tier (0.5GB storage, shared compute) handles MVP and early growth
+6. **Easier local development** - Can use Docker PostgreSQL locally, identical to production
+7. **Proven patterns** - Standard CRUD operations, transactions, and constraints work out-of-the-box
+
+#### DynamoDB Trade-offs (Why We Didn't Choose It):
+**Pros**:
+- Better AWS integration (no external service)
+- Larger free tier (25GB vs 0.5GB)
+- No connection pooling issues with Lambda
+- Potentially lower cost at scale
+
+**Cons**:
+- **Major rewrite required** - Would need to redesign entire schema and rewrite all queries
+- **NoSQL constraints** - No JOINs, complex access patterns require denormalization
+- **Drizzle ORM incompatible** - Would need to use AWS SDK/DocumentClient directly
+- **Development complexity** - Single-table design or GSI management adds cognitive overhead
+- **Estimated effort** - 4-7 days of development work to migrate
+
+**When to reconsider**: If we reach >100,000 users and need DynamoDB's scale/performance, or if Neon costs become prohibitive (unlikely until significant revenue).
+
+### Caching: Upstash Redis (Optional)
+
+**Decision**: Use Upstash Redis as optional cache, not required for MVP.
+
+**Rationale**:
+- Redis not currently implemented in codebase
+- Neon PostgreSQL is fast enough for MVP traffic
+- Can add later for session storage, rate limiting, or query caching
+- Upstash free tier (10K commands/day) sufficient for future needs
 
 ## API Architecture
 
