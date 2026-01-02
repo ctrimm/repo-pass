@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { createCheckoutSession } from '../../lib/stripe';
 import { env } from '../../lib/env';
 import { sendEmail, emailTemplates } from '../../lib/email';
+import { checkRateLimit, getClientId } from '../../lib/rate-limit';
 
 const checkoutSchema = z.object({
   repositoryId: z.string().uuid(),
@@ -14,6 +15,29 @@ const checkoutSchema = z.object({
 
 export const POST: APIRoute = async ({ request }) => {
   try {
+    // Rate limiting: 5 requests per minute per IP
+    const clientId = getClientId(request);
+    const rateLimit = checkRateLimit(`checkout:${clientId}`, 5, 60 * 1000);
+
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: 'Too many requests',
+          retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+            'X-RateLimit-Limit': String(rateLimit.limit),
+            'X-RateLimit-Remaining': String(rateLimit.remaining),
+            'X-RateLimit-Reset': String(Math.floor(rateLimit.resetAt / 1000)),
+          },
+        }
+      );
+    }
+
     // Parse and validate request body
     const body = await request.json();
     const { repositoryId, email, githubUsername } = checkoutSchema.parse(body);

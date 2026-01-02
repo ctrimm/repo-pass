@@ -30,21 +30,6 @@ export function getDatabaseUrl(): string {
 }
 
 /**
- * Get Redis URL from SST or environment
- */
-export function getRedisUrl(): string {
-  if (isSST()) {
-    try {
-      // @ts-ignore - SST Resource types are generated at runtime
-      return Resource.RedisUrl.value;
-    } catch {
-      // Fall through to env var
-    }
-  }
-  return process.env.REDIS_URL || "";
-}
-
-/**
  * Get secret value from SST or environment
  */
 export function getSecret(sstName: string, envName: string): string {
@@ -65,9 +50,8 @@ export function getSecret(sstName: string, envName: string): string {
  */
 export function getEnv() {
   return {
-    // Database & Cache
+    // Database
     DATABASE_URL: getDatabaseUrl(),
-    REDIS_URL: getRedisUrl(),
 
     // Secrets
     JWT_SECRET: getSecret("JwtSecret", "JWT_SECRET"),

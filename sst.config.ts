@@ -5,7 +5,6 @@
  *
  * Ultra-low-cost serverless deployment using:
  * - Neon PostgreSQL (serverless, scales to zero, FREE tier)
- * - Upstash Redis (serverless, FREE tier for low traffic)
  * - AWS Lambda (FREE tier: 1M requests/mo)
  * - CloudFront CDN
  *
@@ -28,7 +27,6 @@ export default $config({
   async run() {
     // Secrets for external services
     const databaseUrl = new sst.Secret("DatabaseUrl"); // Neon connection string
-    const redisUrl = new sst.Secret("RedisUrl"); // Upstash connection string
 
     // Application secrets
     const jwtSecret = new sst.Secret("JwtSecret");
@@ -46,7 +44,6 @@ export default $config({
       path: ".",
       link: [
         databaseUrl,
-        redisUrl,
         jwtSecret,
         sessionSecret,
         githubClientSecret,
@@ -61,8 +58,8 @@ export default $config({
         // Application
         NODE_ENV: $app.stage === "production" ? "production" : "development",
         SITE_URL: $app.stage === "production"
-          ? "https://repopass.com"
-          : `https://${$app.stage}.repopass.com`,
+          ? "https://repopass.io"
+          : `https://${$app.stage}.repopass.io`,
 
         // GitHub OAuth
         GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || "",
@@ -71,7 +68,7 @@ export default $config({
         STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY || "",
 
         // Email
-        EMAIL_FROM: process.env.EMAIL_FROM || "noreply@repopass.com",
+        EMAIL_FROM: process.env.EMAIL_FROM || "noreply@repopass.io",
 
         // Admin
         ADMIN_EMAIL: process.env.ADMIN_EMAIL || "",
@@ -81,7 +78,7 @@ export default $config({
       },
       domain: $app.stage === "production"
         ? {
-            name: "repopass.com",
+            name: "repopass.io",
             dns: sst.cloudflare.dns(),
           }
         : undefined,

@@ -18,13 +18,13 @@ RepoPass is a SaaS platform that automates GitHub repository access monetization
 - **API Framework**: Astro API routes
 - **Database**: PostgreSQL (Neon - Serverless)
 - **ORM**: Drizzle ORM
-- **Caching**: Redis (Upstash - Serverless, optional for MVP)
+- **Rate Limiting**: In-memory (per-Lambda-instance)
 
 ### Infrastructure (Serverless)
 - **Deployment**: SST v3 (Ion)
 - **Compute**: AWS Lambda functions
 - **Database**: Neon PostgreSQL (serverless, scales to zero)
-- **Caching**: Upstash Redis (serverless, optional)
+- **Domain**: repopass.io (Cloudflare DNS)
 - **CDN**: AWS CloudFront
 - **Secrets**: AWS Secrets Manager (via SST)
 - **Cost**: $0-5/month for low traffic
@@ -134,15 +134,19 @@ purchases (1) ──> (N) access_logs
 
 **When to reconsider**: If we reach >100,000 users and need DynamoDB's scale/performance, or if Neon costs become prohibitive (unlikely until significant revenue).
 
-### Caching: Upstash Redis (Optional)
+### Rate Limiting
 
-**Decision**: Use Upstash Redis as optional cache, not required for MVP.
+**Decision**: Use in-memory rate limiting for MVP, can upgrade to distributed solution later.
 
-**Rationale**:
-- Redis not currently implemented in codebase
-- Neon PostgreSQL is fast enough for MVP traffic
-- Can add later for session storage, rate limiting, or query caching
-- Upstash free tier (10K commands/day) sufficient for future needs
+**Implementation**:
+- Simple in-memory Map-based rate limiter in `src/lib/rate-limit.ts`
+- Applied to `/api/checkout` endpoint (5 requests/minute per IP)
+- Returns standard 429 status with Retry-After headers
+
+**Trade-offs**:
+- **Pros**: No external dependencies, zero cost, simple implementation
+- **Cons**: Per-Lambda-instance only (not shared across all instances)
+- **Future**: Can migrate to Upstash Redis or DynamoDB for distributed rate limiting if needed
 
 ## API Architecture
 

@@ -104,7 +104,7 @@ Deploy RepoPass as a **fully serverless** application using external services + 
 ### Architecture (Ultra-Low-Cost)
 - **App**: Astro SSR on AWS Lambda (FREE tier: 1M requests/mo)
 - **Database**: Neon PostgreSQL (serverless, scales to zero, **FREE tier**)
-- **Cache**: Upstash Redis (serverless, **FREE tier**: 10K commands/day)
+- **Domain**: repopass.io (via Cloudflare DNS)
 - **Secrets**: AWS Secrets Manager via SST
 - **CDN**: CloudFront (FREE tier: 1TB/mo)
 - **Monthly Cost**: **$0-5** for low traffic! 🎉
@@ -113,12 +113,15 @@ Deploy RepoPass as a **fully serverless** application using external services + 
 
 #### Phase 1: SST Setup ✅ COMPLETE
 - [x] Install SST v3
-- [x] Create `sst.config.ts` with Neon + Upstash + all secrets
+- [x] Create `sst.config.ts` with Neon + all secrets
 - [x] Add SST types to `tsconfig.json`
 - [x] Update `.gitignore` for SST artifacts
 - [x] Update `src/lib/sst.ts` for external services
 - [x] Integrate all database files (`src/db/*.ts`) with SST helpers
 - [x] Add `AdminEmail` secret to SST config
+- [x] Remove unused Redis code (not needed for MVP)
+- [x] Configure domain to repopass.io
+- [x] Add rate limiting to /api/checkout endpoint (5 req/min)
 
 #### Phase 2: External Services Setup
 - [ ] **Neon PostgreSQL** (FREE tier)
@@ -132,15 +135,10 @@ Deploy RepoPass as a **fully serverless** application using external services + 
   - [ ] Test connection locally in `.env`: `DATABASE_URL=postgresql://...`
   - [ ] Run migrations: `npx sst shell --stage production` then `npm run db:migrate`
 
-- [ ] **Upstash Redis** (FREE tier - Optional for MVP)
-  - [ ] Sign up at https://upstash.com
-  - [ ] Create Redis database → Select **FREE tier**
-  - [ ] Copy connection string (starts with `rediss://...`)
-  - [ ] Add as SST secret:
-    ```bash
-    npx sst secret set RedisUrl "rediss://username:password@host:port"
-    ```
-  - [ ] **Note**: Not critical for launch, can skip initially
+- [ ] **Cloudflare DNS** (for repopass.io domain)
+  - [ ] Add repopass.io to Cloudflare account
+  - [ ] Update nameservers at domain registrar
+  - [ ] Verify DNS propagation before deploying
 
 #### Phase 3: Set Application Secrets
 - [ ] Set all required secrets (one-time setup):
@@ -196,7 +194,7 @@ npm run db:migrate        # Run migrations against prod
 ### Resources
 - [SST v3 Documentation](https://sst.dev/docs)
 - [Neon PostgreSQL](https://neon.tech/docs)
-- [Upstash Redis](https://upstash.com/docs)
+- [Cloudflare DNS](https://developers.cloudflare.com/dns/)
 - [AWS Lambda Pricing](https://aws.amazon.com/lambda/pricing/)
 
 ---
@@ -211,9 +209,10 @@ Implement a hybrid revenue model for RepoPass platform fees:
 
 ### Cost Structure
 **Your Infrastructure Costs:**
-- Neon + Upstash: $0-5/mo
-- Domain: ~$1/mo
-- **Total**: ~$6/mo to run RepoPass
+- Neon PostgreSQL: $0/mo (FREE tier)
+- AWS Lambda + CloudFront: $0-5/mo (within free tier for low traffic)
+- Domain: ~$12/yr (~$1/mo)
+- **Total**: ~$1-6/mo to run RepoPass
 
 **Breakeven Analysis:**
 - At 5% fee: Need $120 in gross sales/month = 2-3 sales at $49/each

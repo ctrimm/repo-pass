@@ -11,9 +11,6 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.string(),
 
-  // Redis
-  REDIS_URL: z.string(),
-
   // GitHub
   GITHUB_CLIENT_ID: z.string(),
   GITHUB_CLIENT_SECRET: z.string(),
