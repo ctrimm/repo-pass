@@ -3,11 +3,13 @@
 /**
  * SST v3 (Ion) Configuration for RepoPass
  *
- * Deploys a fully serverless Astro SSR application with:
- * - PostgreSQL RDS with Proxy (serverless-friendly)
- * - ElastiCache Redis
- * - Secrets management
+ * Ultra-low-cost serverless deployment using:
+ * - Neon PostgreSQL (serverless, scales to zero, FREE tier)
+ * - Upstash Redis (serverless, FREE tier for low traffic)
+ * - AWS Lambda (FREE tier: 1M requests/mo)
  * - CloudFront CDN
+ *
+ * Estimated monthly cost: $0-5 for low traffic! 🎉
  */
 
 export default $config({
@@ -24,31 +26,11 @@ export default $config({
     };
   },
   async run() {
-    // VPC for database and Redis
-    const vpc = new sst.aws.Vpc("RepoPassVpc", {
-      nat: "ec2", // Use EC2 NAT for lower cost (~$5/mo vs $30/mo NAT Gateway)
-    });
+    // Secrets for external services
+    const databaseUrl = new sst.Secret("DatabaseUrl"); // Neon connection string
+    const redisUrl = new sst.Secret("RedisUrl"); // Upstash connection string
 
-    // PostgreSQL Database with RDS Proxy
-    const database = new sst.aws.Postgres("RepoPassDB", {
-      vpc,
-      proxy: true, // Enable RDS Proxy for serverless Lambda connections
-      version: "16.4",
-      instance: $app.stage === "production" ? "t4g.small" : "t4g.micro",
-      storage: $app.stage === "production" ? "100 GB" : "20 GB",
-      scaling: {
-        min: 0.5, // Minimum ACUs for Aurora Serverless v2
-        max: $app.stage === "production" ? 4 : 2,
-      },
-    });
-
-    // Redis Cache
-    const redis = new sst.aws.Redis("RepoPassCache", {
-      vpc,
-      instance: $app.stage === "production" ? "cache.t4g.small" : "cache.t4g.micro",
-    });
-
-    // Secrets
+    // Application secrets
     const jwtSecret = new sst.Secret("JwtSecret");
     const sessionSecret = new sst.Secret("SessionSecret");
     const githubClientSecret = new sst.Secret("GitHubClientSecret");
@@ -56,17 +38,14 @@ export default $config({
     const stripeSecretKey = new sst.Secret("StripeSecretKey");
     const stripeWebhookSecret = new sst.Secret("StripeWebhookSecret");
     const resendApiKey = new sst.Secret("ResendApiKey");
-    const posthogApiKey = new sst.Secret("PostHogApiKey", {
-      // Optional - can be empty
-    });
+    const posthogApiKey = new sst.Secret("PostHogApiKey");
 
-    // Astro SSR Application
+    // Astro SSR Application (deployed as Lambda functions)
     const web = new sst.aws.Astro("RepoPassWeb", {
       path: ".",
-      vpc,
       link: [
-        database,
-        redis,
+        databaseUrl,
+        redisUrl,
         jwtSecret,
         sessionSecret,
         githubClientSecret,
@@ -109,8 +88,6 @@ export default $config({
     // Outputs
     return {
       web: web.url,
-      database: database.host,
-      redis: redis.host,
     };
   },
 });

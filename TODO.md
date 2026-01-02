@@ -99,49 +99,79 @@ To list your premium theme on your personal site:
 ## Serverless Deployment with SST v3 (Ion)
 
 ### Overview
-Deploy RepoPass as a fully serverless application on AWS using SST v3 (Ion). This eliminates the need for running containers locally and provides auto-scaling, pay-per-use pricing.
+Deploy RepoPass as a **fully serverless** application using external services + AWS Lambda. Zero always-on infrastructure costs!
 
-### Architecture
-- **App**: Astro SSR on AWS Fargate (serverless containers)
-- **Database**: RDS PostgreSQL with RDS Proxy (serverless-friendly)
-- **Cache**: ElastiCache Redis (serverless)
-- **Secrets**: AWS Secrets Manager via SST Secrets
-- **DNS**: Route 53 + CloudFront CDN
-- **Cost**: ~$20-40/month for low traffic
+### Architecture (Ultra-Low-Cost)
+- **App**: Astro SSR on AWS Lambda (FREE tier: 1M requests/mo)
+- **Database**: Neon PostgreSQL (serverless, scales to zero, **FREE tier**)
+- **Cache**: Upstash Redis (serverless, **FREE tier**: 10K commands/day)
+- **Secrets**: AWS Secrets Manager via SST
+- **CDN**: CloudFront (FREE tier: 1TB/mo)
+- **Monthly Cost**: **$0-5** for low traffic! 🎉
 
 ### Implementation Plan
 
-#### Phase 1: SST Setup
-- [ ] Install SST v3: `npm install -D sst@latest`
-- [ ] Initialize SST: `npx sst init`
-- [ ] Create `sst.config.ts` with basic config
-- [ ] Add SST types to `tsconfig.json`
-- [ ] Update `.gitignore` for SST artifacts
+#### Phase 1: SST Setup ✅ COMPLETE
+- [x] Install SST v3
+- [x] Create `sst.config.ts` with Neon + Upstash
+- [x] Add SST types to `tsconfig.json`
+- [x] Update `.gitignore` for SST artifacts
+- [x] Update `src/lib/sst.ts` for external services
 
-#### Phase 2: Infrastructure Configuration
-- [ ] Configure VPC for database/Redis
-- [ ] Set up RDS PostgreSQL with Proxy
-- [ ] Configure ElastiCache Redis cluster
-- [ ] Set up secrets management (JWT, Stripe, GitHub, etc.)
-- [ ] Link resources to Astro app
+#### Phase 2: External Services Setup
+- [ ] **Neon PostgreSQL** (FREE tier)
+  - [ ] Sign up at https://neon.tech
+  - [ ] Create new project → Select **FREE tier**
+  - [ ] Copy connection string (starts with `postgresql://...`)
+  - [ ] Add as SST secret:
+    ```bash
+    npx sst secret set DatabaseUrl "postgresql://username:password@host/database"
+    ```
+  - [ ] Test connection locally in `.env`: `DATABASE_URL=postgresql://...`
+  - [ ] Run migrations: `npx sst shell --stage production` then `npm run db:migrate`
 
-#### Phase 3: Astro Deployment Setup
-- [ ] Configure `aws.Astro` component for SSR
-- [ ] Set up environment variable linking
+- [ ] **Upstash Redis** (FREE tier - Optional for MVP)
+  - [ ] Sign up at https://upstash.com
+  - [ ] Create Redis database → Select **FREE tier**
+  - [ ] Copy connection string (starts with `rediss://...`)
+  - [ ] Add as SST secret:
+    ```bash
+    npx sst secret set RedisUrl "rediss://username:password@host:port"
+    ```
+  - [ ] **Note**: Not critical for launch, can skip initially
+
+#### Phase 3: Set Application Secrets
+- [ ] Set all required secrets (one-time setup):
+  ```bash
+  # Generate and set auth secrets
+  npx sst secret set JwtSecret $(openssl rand -base64 32)
+  npx sst secret set SessionSecret $(openssl rand -base64 32)
+
+  # Set service API keys
+  npx sst secret set GitHubClientSecret <from_github_oauth_app>
+  npx sst secret set GitHubPAT <from_github_settings>
+  npx sst secret set StripeSecretKey <from_stripe_dashboard>
+  npx sst secret set StripeWebhookSecret <from_stripe_cli>
+  npx sst secret set ResendApiKey <from_resend.com>
+
+  # Optional analytics
+  npx sst secret set PostHogApiKey <optional>
+  ```
+
+#### Phase 4: Deploy & Test
+- [ ] Deploy to staging: `npx sst deploy --stage staging`
+- [ ] Test OAuth: Login with GitHub
+- [ ] Test checkout: Create test repository and purchase
+- [ ] Test webhooks: Complete Stripe payment
+- [ ] Verify email delivery
+- [ ] Deploy to production: `npx sst deploy --stage production`
+- [ ] Update GitHub OAuth callback URL to production domain
 - [ ] Configure custom domain (optional)
-- [ ] Set up CloudFront CDN
 
-#### Phase 4: Database Migration
-- [ ] Update Drizzle to use RDS connection
-- [ ] Create migration script for production
-- [ ] Set up database seeding for prod
-
-#### Phase 5: Testing & Deployment
-- [ ] Test local SST dev mode
-- [ ] Deploy to staging environment
-- [ ] Run smoke tests
-- [ ] Deploy to production
-- [ ] Set up GitHub Actions for CI/CD
+#### Phase 5: CI/CD & Monitoring (Optional)
+- [ ] Set up GitHub Actions for auto-deploy on push
+- [ ] Configure Sentry or similar for error tracking
+- [ ] Set up uptime monitoring (UptimeRobot free tier)
 
 ### Commands
 ```bash
@@ -162,9 +192,110 @@ npm run db:migrate        # Run migrations against prod
 
 ### Resources
 - [SST v3 Documentation](https://sst.dev/docs)
-- [Astro Component](https://sst.dev/docs/component/aws/astro/)
-- [PostgreSQL Component](https://sst.dev/docs/component/aws/postgres/)
-- [Environment Variables](https://sst.dev/docs/environment-variables/)
+- [Neon PostgreSQL](https://neon.tech/docs)
+- [Upstash Redis](https://upstash.com/docs)
+- [AWS Lambda Pricing](https://aws.amazon.com/lambda/pricing/)
+
+---
+
+## Revenue Model Implementation (Option C - Hybrid)
+
+### Overview
+Implement a hybrid revenue model for RepoPass platform fees:
+- **FREE**: First $100 in sales
+- **5% Platform Fee**: After $100, take 5% of each sale
+- **OR $15/mo Flat Fee**: Unlimited sales (sellers can opt-in)
+
+### Cost Structure
+**Your Infrastructure Costs:**
+- Neon + Upstash: $0-5/mo
+- Domain: ~$1/mo
+- **Total**: ~$6/mo to run RepoPass
+
+**Breakeven Analysis:**
+- At 5% fee: Need $120 in gross sales/month = 2-3 sales at $49/each
+- At $15/mo subscription: Need 1 paying seller
+- **Goal**: Profitable after 3 total sales OR 1 subscriber
+
+### Implementation Plan
+
+#### Phase 1: Database Schema (Platform Fees)
+- [ ] Create `platform_fees` table:
+  ```sql
+  - seller_id (references users)
+  - stripe_account_id (Stripe Connect)
+  - plan_type (enum: 'free', 'percentage', 'flat')
+  - lifetime_revenue_cents (tracking for $100 threshold)
+  - current_period_start
+  - current_period_end
+  - status (active, canceled, etc.)
+  ```
+- [ ] Create `fee_transactions` table:
+  ```sql
+  - transaction_id
+  - seller_id
+  - purchase_id
+  - sale_amount_cents
+  - platform_fee_cents
+  - stripe_fee_cents
+  - seller_net_cents
+  - created_at
+  ```
+
+#### Phase 2: Stripe Connect Integration
+- [ ] Set up Stripe Connect for multi-seller payments
+- [ ] Implement "Connect with Stripe" flow for sellers
+- [ ] Store Stripe Connect account IDs
+- [ ] Configure application fee collection (5% or $0 based on plan)
+
+#### Phase 3: Fee Calculation Logic
+- [ ] Create `src/lib/platform-fees.ts`:
+  - [ ] Function to calculate platform fee based on seller's plan
+  - [ ] Function to check if seller exceeds $100 free tier
+  - [ ] Function to determine if seller should upgrade to paid plan
+- [ ] Update checkout flow to apply platform fees via Stripe Connect
+
+#### Phase 4: Seller Dashboard
+- [ ] Add "Revenue" tab to seller dashboard:
+  - [ ] Show lifetime revenue
+  - [ ] Show current plan (Free, 5% fee, or $15/mo)
+  - [ ] Show fee breakdown per transaction
+  - [ ] Button to upgrade to $15/mo flat plan
+- [ ] Add notification when approaching $100 free tier limit
+
+#### Phase 5: Subscription Billing
+- [ ] Create subscription product for $15/mo flat fee plan
+- [ ] Implement "Upgrade to Pro" checkout flow
+- [ ] Handle subscription renewal/cancellation
+- [ ] Automatically switch between percentage and flat fee based on subscription status
+
+#### Phase 6: Admin Analytics
+- [ ] Platform revenue dashboard for Cory:
+  - [ ] Total platform fees collected
+  - [ ] Breakdown by fee type (5% vs $15/mo)
+  - [ ] Number of active sellers by plan type
+  - [ ] MRR (Monthly Recurring Revenue) tracking
+
+### Pricing Strategy
+**For sellers using RepoPass:**
+| Seller's Sale Price | Stripe Fee (2.9% + $0.30) | Platform Fee (5%) | Seller Keeps |
+|---------------------|---------------------------|-------------------|--------------|
+| $49 | $1.72 | $2.45 | $44.83 (91.5%) |
+| $79 | $2.59 | $3.95 | $72.46 (91.7%) |
+| $99 | $3.17 | $4.95 | $90.88 (91.8%) |
+
+**Flat fee alternative:**
+- Seller pays $15/mo → Keeps 97% of sales (only Stripe fees)
+- Makes sense for sellers with >$300/mo in sales
+
+### Launch Checklist
+- [ ] Implement basic platform fee tracking (read-only)
+- [ ] Launch with FREE tier only (no fees initially)
+- [ ] Gather feedback from early adopters
+- [ ] Enable 5% fee after 10+ active sellers
+- [ ] Introduce $15/mo plan when sellers request it
+
+**Priority**: LOW (implement after initial launch and validation)
 
 ## Notes
 

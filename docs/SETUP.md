@@ -73,19 +73,42 @@ POSTHOG_API_KEY=phc_xxxxx
 POSTHOG_HOST=https://app.posthog.com
 ```
 
-### 4. Start Local Database (Docker)
+### 4. Database Setup (Neon - Serverless PostgreSQL)
 
-If you don't have PostgreSQL and Redis installed locally:
+For **local development**, you have two options:
 
+**Option A: Use Neon (Recommended - same as production)**
+- Sign up at [https://neon.tech](https://neon.tech)
+- Create new project (FREE tier is fine)
+- Copy connection string
+- Add to `.env` as `DATABASE_URL`
+- No Docker needed!
+
+**Option B: Use Docker (Traditional)**
 ```bash
-docker-compose up -d
+docker-compose up -d  # Starts PostgreSQL on port 5432
 ```
 
-This starts:
-- PostgreSQL on port 5432
-- Redis on port 6379
+### 5. Redis Setup (Upstash - Optional)
 
-### 5. Run Database Migrations
+Redis is **optional** for MVP. If you want caching:
+
+**Option A: Use Upstash (Recommended - same as production)**
+- Sign up at [https://upstash.com](https://upstash.com)
+- Create Redis database (FREE tier)
+- Copy connection string
+- Add to `.env` as `REDIS_URL`
+
+**Option B: Use Docker (Traditional)**
+```bash
+docker-compose up -d  # Includes Redis on port 6379
+```
+
+**Option C: Skip Redis (For MVP)**
+- Leave `REDIS_URL` empty for now
+- Add it later when you need caching
+
+### 6. Run Database Migrations
 
 ```bash
 npm run db:migrate

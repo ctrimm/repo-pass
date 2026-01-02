@@ -21,7 +21,7 @@ export function getDatabaseUrl(): string {
   if (isSST()) {
     try {
       // @ts-ignore - SST Resource types are generated at runtime
-      return Resource.RepoPassDB.url;
+      return Resource.DatabaseUrl.value;
     } catch {
       // Fall through to env var
     }
@@ -36,7 +36,7 @@ export function getRedisUrl(): string {
   if (isSST()) {
     try {
       // @ts-ignore - SST Resource types are generated at runtime
-      return Resource.RepoPassCache.url;
+      return Resource.RedisUrl.value;
     } catch {
       // Fall through to env var
     }
