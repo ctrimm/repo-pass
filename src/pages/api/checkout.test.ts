@@ -90,7 +90,7 @@ describe('POST /api/checkout', () => {
 
   it('should return 404 for inactive repository', async () => {
     const { db } = await import('../../db');
-    vi.mocked(db.query.repositories.findFirst).mockResolvedValue(null);
+    vi.mocked(db.query.repositories.findFirst).mockResolvedValue(undefined);
 
     const request = new Request('http://localhost/api/checkout', {
       method: 'POST',

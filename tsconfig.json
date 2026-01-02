@@ -6,7 +6,8 @@
     "**/*"
   ],
   "exclude": [
-    "dist"
+    "dist",
+    "sst.config.ts"
   ],
   "compilerOptions": {
     "jsx": "react-jsx",
