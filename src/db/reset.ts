@@ -1,8 +1,10 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { sql } from 'drizzle-orm';
+import { getDatabaseUrl } from '../lib/sst';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
+// Uses SST resource in production, falls back to env var in dev
+const connectionString = getDatabaseUrl() || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
 
 async function reset() {
   console.log('⚠️  WARNING: This will delete all data from the database!');

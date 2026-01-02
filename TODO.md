@@ -113,10 +113,12 @@ Deploy RepoPass as a **fully serverless** application using external services + 
 
 #### Phase 1: SST Setup ✅ COMPLETE
 - [x] Install SST v3
-- [x] Create `sst.config.ts` with Neon + Upstash
+- [x] Create `sst.config.ts` with Neon + Upstash + all secrets
 - [x] Add SST types to `tsconfig.json`
 - [x] Update `.gitignore` for SST artifacts
 - [x] Update `src/lib/sst.ts` for external services
+- [x] Integrate all database files (`src/db/*.ts`) with SST helpers
+- [x] Add `AdminEmail` secret to SST config
 
 #### Phase 2: External Services Setup
 - [ ] **Neon PostgreSQL** (FREE tier)
@@ -153,6 +155,7 @@ Deploy RepoPass as a **fully serverless** application using external services + 
   npx sst secret set StripeSecretKey <from_stripe_dashboard>
   npx sst secret set StripeWebhookSecret <from_stripe_cli>
   npx sst secret set ResendApiKey <from_resend.com>
+  npx sst secret set AdminEmail <your_admin_email>
 
   # Optional analytics
   npx sst secret set PostHogApiKey <optional>

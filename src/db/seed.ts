@@ -1,12 +1,13 @@
 import { db, users, repositories } from './index';
 import { eq } from 'drizzle-orm';
+import { getSecret } from '../lib/sst';
 
 async function seed() {
   console.log('🌱 Seeding database...');
 
   try {
-    // Create admin user (Cory)
-    const adminEmail = process.env.ADMIN_EMAIL || 'cory@example.com';
+    // Create admin user (Cory) - uses SST secret in production
+    const adminEmail = getSecret('AdminEmail', 'ADMIN_EMAIL') || 'cory@example.com';
 
     console.log('Creating admin user...');
     const [adminUser] = await db

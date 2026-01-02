@@ -39,6 +39,7 @@ export default $config({
     const stripeWebhookSecret = new sst.Secret("StripeWebhookSecret");
     const resendApiKey = new sst.Secret("ResendApiKey");
     const posthogApiKey = new sst.Secret("PostHogApiKey");
+    const adminEmail = new sst.Secret("AdminEmail");
 
     // Astro SSR Application (deployed as Lambda functions)
     const web = new sst.aws.Astro("RepoPassWeb", {
@@ -54,6 +55,7 @@ export default $config({
         stripeWebhookSecret,
         resendApiKey,
         posthogApiKey,
+        adminEmail,
       ],
       environment: {
         // Application

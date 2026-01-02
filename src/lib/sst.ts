@@ -78,6 +78,7 @@ export function getEnv() {
     STRIPE_WEBHOOK_SECRET: getSecret("StripeWebhookSecret", "STRIPE_WEBHOOK_SECRET"),
     RESEND_API_KEY: getSecret("ResendApiKey", "RESEND_API_KEY"),
     POSTHOG_API_KEY: getSecret("PostHogApiKey", "POSTHOG_API_KEY"),
+    ADMIN_EMAIL: getSecret("AdminEmail", "ADMIN_EMAIL"),
 
     // Environment variables (not secrets)
     NODE_ENV: process.env.NODE_ENV || "development",
@@ -86,7 +87,6 @@ export function getEnv() {
     GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || "",
     STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY || "",
     EMAIL_FROM: process.env.EMAIL_FROM || "",
-    ADMIN_EMAIL: process.env.ADMIN_EMAIL || "",
     POSTHOG_HOST: process.env.POSTHOG_HOST || "https://app.posthog.com",
   };
 }

@@ -1,8 +1,10 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
+import { getDatabaseUrl } from '../lib/sst';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
+// Uses SST resource in production, falls back to env var in dev
+const connectionString = getDatabaseUrl() || 'postgresql://postgres:postgres@localhost:5432/repopass_dev';
 
 async function main() {
   console.log('🚀 Running migrations...');
