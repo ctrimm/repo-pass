@@ -41,8 +41,60 @@ class Analytics {
             posthog.opt_out_capturing(); // Don't track in dev
           }
         },
+        // Enable error tracking (autocapture exceptions)
+        capture_pageview: true,
+        capture_pageleave: true,
       });
       this.initialized = true;
+
+      // Set up global error handlers for client-side
+      if (typeof window !== 'undefined') {
+        this.setupErrorTracking();
+      }
+    }
+  }
+
+  /**
+   * Set up global error tracking handlers
+   */
+  private setupErrorTracking() {
+    // Capture unhandled errors
+    window.addEventListener('error', (event) => {
+      this.captureError(event.error, {
+        context: 'window.onerror',
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+      });
+    });
+
+    // Capture unhandled promise rejections
+    window.addEventListener('unhandledrejection', (event) => {
+      this.captureError(event.reason, {
+        context: 'unhandledrejection',
+        promise: String(event.promise),
+      });
+    });
+  }
+
+  /**
+   * Capture an error for tracking
+   */
+  captureError(error: Error | string, properties?: Record<string, any>) {
+    const errorData = {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      ...properties,
+    };
+
+    if (this.provider === 'posthog' && this.initialized) {
+      posthog.capture('$exception', errorData);
+    }
+
+    // Log in development
+    if (env.NODE_ENV === 'development') {
+      console.error('🚨 Error captured:', error, properties);
     }
   }
 
@@ -136,6 +188,45 @@ export async function trackServerEvent(event: string, properties?: Record<string
   if (env.NODE_ENV === 'development') {
     console.log('📊 Server Event:', event, properties);
   }
+}
+
+/**
+ * Server-side error tracking
+ * For tracking backend errors (API failures, webhook errors, etc.)
+ */
+export async function trackServerError(error: Error | string, properties?: Record<string, any>) {
+  const errorData = {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    ...properties,
+  };
+
+  // Track as $exception event in PostHog
+  if (env.POSTHOG_API_KEY && env.NODE_ENV === 'production') {
+    try {
+      await fetch(`${env.POSTHOG_HOST || 'https://app.posthog.com'}/capture/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          api_key: env.POSTHOG_API_KEY,
+          event: '$exception',
+          properties: {
+            ...errorData,
+            $lib: 'repo-pass-server',
+          },
+          timestamp: new Date().toISOString(),
+        }),
+      });
+    } catch (trackingError) {
+      // Silently fail - don't throw errors from error tracking
+      console.error('Failed to track error:', trackingError);
+    }
+  }
+
+  // Always log in development and non-production
+  console.error('🚨 Server Error:', error, properties);
 }
 
 /**
