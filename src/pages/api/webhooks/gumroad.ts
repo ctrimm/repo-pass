@@ -40,7 +40,6 @@ export const POST: APIRoute = async ({ request }) => {
     // Extract common fields
     const saleId = formData.get('sale_id') as string;
     const email = formData.get('email') as string;
-    const productId = formData.get('product_id') as string;
     const isCancelled = formData.get('cancelled') === 'true';
     const isRefunded = formData.get('refunded') === 'true';
     const isRecurring = formData.get('is_recurring_charge') === 'true';

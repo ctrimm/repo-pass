@@ -17,6 +17,9 @@ vi.mock('../../db', () => ({
       repositories: {
         findFirst: vi.fn(),
       },
+      users: {
+        findFirst: vi.fn(),
+      },
     },
     insert: vi.fn().mockReturnValue({
       values: vi.fn().mockReturnValue({
@@ -28,16 +31,39 @@ vi.mock('../../db', () => ({
         ]),
       }),
     }),
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+    }),
   },
   repositories: {},
   purchases: {},
+  users: {},
 }));
 
-vi.mock('../../lib/stripe', () => ({
-  createCheckoutSession: vi.fn().mockResolvedValue({
-    sessionId: 'cs_test_123',
-    sessionUrl: 'https://checkout.stripe.com/test',
+vi.mock('../../lib/crypto', () => ({
+  decrypt: vi.fn((value) => value), // Return value as-is for tests
+}));
+
+vi.mock('../../lib/payments/factory', () => ({
+  PaymentProviderFactory: {
+    createAndInitialize: vi.fn().mockResolvedValue({
+      createProduct: vi.fn().mockResolvedValue({
+        productId: 'prod_test_123',
+        priceId: 'price_test_123',
+      }),
+      createCheckoutUrl: vi.fn().mockResolvedValue('https://checkout.example.com/test'),
+    }),
+  },
+  getUserPaymentCredentials: vi.fn().mockReturnValue({
+    provider: 'stripe',
+    credentials: {
+      stripeSecretKey: 'sk_test_123',
+      stripePublishableKey: 'pk_test_123',
+    },
   }),
+  hasPaymentProvider: vi.fn().mockReturnValue(true),
 }));
 
 vi.mock('../../lib/email', () => ({
@@ -137,12 +163,14 @@ describe('POST /api/checkout', () => {
 
   it('should create checkout session for valid request', async () => {
     const { db } = await import('../../db');
-    const { createCheckoutSession } = await import('../../lib/stripe');
+    const { PaymentProviderFactory } = await import('../../lib/payments/factory');
 
     const repoId = '123e4567-e89b-12d3-a456-426614174000';
+    const userId = 'user-123';
 
     vi.mocked(db.query.repositories.findFirst).mockResolvedValue({
       id: repoId,
+      ownerId: userId,
       displayName: 'Test Repo',
       slug: 'test-repo',
       priceCents: 4900,
@@ -151,6 +179,16 @@ describe('POST /api/checkout', () => {
       active: true,
       githubOwner: 'test-owner',
       githubRepoName: 'test-repo',
+      externalProductId: 'prod_test_123',
+      externalPriceId: 'price_test_123',
+    } as any);
+
+    vi.mocked(db.query.users.findFirst).mockResolvedValue({
+      id: userId,
+      email: 'owner@example.com',
+      paymentProvider: 'stripe',
+      stripeSecretKey: 'sk_test_123',
+      stripePublishableKey: 'pk_test_123',
     } as any);
 
     const request = new Request('http://localhost/api/checkout', {
@@ -166,10 +204,10 @@ describe('POST /api/checkout', () => {
     const response = await POST({ request } as any);
 
     expect(response.status).toBe(200);
-    expect(createCheckoutSession).toHaveBeenCalled();
+    expect(PaymentProviderFactory.createAndInitialize).toHaveBeenCalled();
 
     const data = await response.json();
-    expect(data.sessionId).toBe('cs_test_123');
-    expect(data.sessionUrl).toBe('https://checkout.stripe.com/test');
+    expect(data.checkoutUrl).toBe('https://checkout.example.com/test');
+    expect(data.provider).toBe('stripe');
   });
 });

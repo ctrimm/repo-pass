@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { db, purchases, accessLogs, repositories, users } from '../../../db';
+import { db, purchases, accessLogs, repositories } from '../../../db';
 import { eq, and, desc } from 'drizzle-orm';
 import { addCollaborator, removeCollaborator, checkUserExists } from '../../../lib/github';
 import { sendEmail, emailTemplates } from '../../../lib/email';
@@ -36,7 +36,6 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     // Get raw body for signature verification
     const body = await request.text();
-    const signature = request.headers.get('x-signature');
 
     // Parse webhook event
     const event = JSON.parse(body);

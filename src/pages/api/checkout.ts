@@ -2,7 +2,6 @@ import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import { db, repositories, purchases, users } from '../../db';
 import { eq } from 'drizzle-orm';
-import { env } from '../../lib/env';
 import { sendEmail, emailTemplates } from '../../lib/email';
 import { checkRateLimit, getClientId } from '../../lib/rate-limit';
 import {
