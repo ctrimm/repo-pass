@@ -4,10 +4,10 @@ import Layout from '../../../layouts/main.astro';
 import AdminNav from '../../../components/AdminNav.astro';
 import { requireAdmin } from '../../../lib/auth';
 import { db, purchases, repositories, accessLogs } from '../../../db';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, inArray, and } from 'drizzle-orm';
 
 // Require admin access
-await requireAdmin(Astro.cookies).catch(() => {
+const session = await requireAdmin(Astro.cookies).catch(() => {
   return Astro.redirect('/');
 });
 
@@ -16,25 +16,43 @@ const repositoryId = Astro.url.searchParams.get('repository');
 const status = Astro.url.searchParams.get('status');
 const search = Astro.url.searchParams.get('search');
 
-// Fetch all purchases
-let allPurchases = await db.select().from(purchases).orderBy(desc(purchases.createdAt));
+// SECURITY: First get all repository IDs owned by current user
+const userRepos = await db
+  .select({ id: repositories.id })
+  .from(repositories)
+  .where(eq(repositories.ownerId, session.userId));
 
-// Apply filters
-if (repositoryId) {
-  allPurchases = allPurchases.filter((p) => p.repositoryId === repositoryId);
-}
+const userRepoIds = userRepos.map((r) => r.id);
 
-if (status) {
-  allPurchases = allPurchases.filter((p) => p.accessStatus === status);
-}
+// If user has no repositories, show empty state
+let allPurchases: any[] = [];
+if (userRepoIds.length > 0) {
+  // SECURITY: Only fetch purchases for user's repositories
+  const conditions = [inArray(purchases.repositoryId, userRepoIds)];
 
-if (search) {
-  const searchLower = search.toLowerCase();
-  allPurchases = allPurchases.filter(
-    (p) =>
-      p.email.toLowerCase().includes(searchLower) ||
-      p.githubUsername.toLowerCase().includes(searchLower)
-  );
+  if (repositoryId && userRepoIds.includes(repositoryId)) {
+    conditions.push(eq(purchases.repositoryId, repositoryId));
+  }
+
+  if (status) {
+    conditions.push(eq(purchases.accessStatus, status as any));
+  }
+
+  allPurchases = await db
+    .select()
+    .from(purchases)
+    .where(and(...conditions))
+    .orderBy(desc(purchases.createdAt));
+
+  // Apply search filter in memory (email/username)
+  if (search) {
+    const searchLower = search.toLowerCase();
+    allPurchases = allPurchases.filter(
+      (p) =>
+        p.email.toLowerCase().includes(searchLower) ||
+        p.githubUsername.toLowerCase().includes(searchLower)
+    );
+  }
 }
 
 // Get repository details for each purchase
@@ -58,8 +76,12 @@ const customersWithDetails = await Promise.all(
   })
 );
 
-// Get all repositories for filter dropdown
-const allRepositories = await db.select().from(repositories).orderBy(repositories.displayName);
+// SECURITY: Get only user's repositories for filter dropdown
+const allRepositories = await db
+  .select()
+  .from(repositories)
+  .where(eq(repositories.ownerId, session.userId))
+  .orderBy(repositories.displayName);
 
 // Calculate stats
 const totalCustomers = customersWithDetails.length;

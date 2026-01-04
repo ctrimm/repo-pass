@@ -4,7 +4,7 @@ import Layout from '../../../../layouts/main.astro';
 import AdminNav from '../../../../components/AdminNav.astro';
 import { requireAdmin } from '../../../../lib/auth';
 import { db, repositories, pricingHistory, purchases } from '../../../../db';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 // Require admin access
 const session = await requireAdmin(Astro.cookies).catch(() => {
@@ -17,9 +17,9 @@ if (!id) {
   return Astro.redirect('/admin');
 }
 
-// Get repository
+// SECURITY: Get repository and verify ownership
 const repository = await db.query.repositories.findFirst({
-  where: eq(repositories.id, id),
+  where: and(eq(repositories.id, id), eq(repositories.ownerId, session.userId)),
 });
 
 if (!repository) {
