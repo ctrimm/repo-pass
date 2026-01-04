@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, purchases, accessLogs, repositories } from '../../../../../db';
+import { db, purchases, accessLogs, repositories } from '../../../../../../db';
 import { eq } from 'drizzle-orm';
-import { requireAdmin } from '../../../../../lib/auth';
-import { removeCollaborator } from '../../../../../lib/github';
-import { sendEmail, emailTemplates } from '../../../../../lib/email';
-import { cancelSubscription } from '../../../../../lib/stripe';
+import { requireAdmin } from '../../../../../../lib/auth';
+import { removeCollaborator } from '../../../../../../lib/github';
+import { sendEmail, emailTemplates } from '../../../../../../lib/email';
+import { cancelSubscription } from '../../../../../../lib/stripe';
 
 const revokeSchema = z.object({
   reason: z.string().optional(),

@@ -8,7 +8,6 @@ const SESSION_COOKIE_NAME = 'repopass_session';
 export interface SessionData {
   userId: string;
   email: string;
-  isAdmin: boolean;
 }
 
 /**
@@ -18,7 +17,6 @@ export async function createSession(data: SessionData): Promise<string> {
   const token = await new jose.SignJWT({
     userId: data.userId,
     email: data.email,
-    isAdmin: data.isAdmin,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -38,7 +36,6 @@ export async function verifySession(token: string): Promise<SessionData | null> 
     return {
       userId: payload.userId as string,
       email: payload.email as string,
-      isAdmin: payload.isAdmin as boolean,
     };
   } catch (error) {
     return null;
@@ -81,18 +78,19 @@ export function clearSessionCookie(cookies: AstroCookies) {
 }
 
 /**
- * Check if user is admin
+ * Require user to be authenticated
  */
-export async function requireAdmin(cookies: AstroCookies): Promise<SessionData> {
+export async function requireAuth(cookies: AstroCookies): Promise<SessionData> {
   const session = await getSession(cookies);
 
   if (!session) {
     throw new Error('Unauthorized: No session found');
   }
 
-  if (!session.isAdmin) {
-    throw new Error('Forbidden: Admin access required');
-  }
-
   return session;
 }
+
+/**
+ * @deprecated Use requireAuth instead
+ */
+export const requireAdmin = requireAuth;

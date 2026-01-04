@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, repositories, pricingHistory } from '../../../../db';
+import { db, repositories, pricingHistory } from '../../../../../db';
 import { eq, desc } from 'drizzle-orm';
-import { requireAdmin } from '../../../../lib/auth';
+import { requireAdmin } from '../../../../../lib/auth';
 
 const createRepositorySchema = z.object({
   githubOwner: z.string().min(1),

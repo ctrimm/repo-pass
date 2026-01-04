@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, repositories, pricingHistory, purchases } from '../../../../db';
+import { db, repositories, pricingHistory, purchases } from '../../../../../db';
 import { eq, desc, isNull } from 'drizzle-orm';
-import { requireAdmin } from '../../../../lib/auth';
+import { requireAdmin } from '../../../../../lib/auth';
 
 const updateRepositorySchema = z.object({
   displayName: z.string().min(1).optional(),

@@ -20,13 +20,12 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
     // Get user info from GitHub
     const githubUser = await getUserInfo(accessToken);
 
-    if (!githubUser.email) {
-      return redirect('/?error=no_email');
-    }
+    // GitHub email can be null if user hides it - use username@users.noreply.github.com as fallback
+    const email = githubUser.email || `${githubUser.login}@users.noreply.github.com`;
 
     // Find or create user in database (any GitHub user can sign in)
     let user = await db.query.users.findFirst({
-      where: eq(users.email, githubUser.email),
+      where: eq(users.email, email),
     });
 
     if (!user) {
@@ -34,13 +33,11 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
       const [newUser] = await db
         .insert(users)
         .values({
-          email: githubUser.email,
+          email,
           githubOauthId: githubUser.id.toString(),
           githubUsername: githubUser.login,
           githubAvatarUrl: githubUser.avatarUrl,
-          githubAccessToken: accessToken, // Store OAuth token for repo access
-          role: 'admin',
-          isAdmin: true, // Each user is admin for their own repos
+          role: 'user',
         })
         .returning();
 
@@ -53,7 +50,6 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
           githubOauthId: githubUser.id.toString(),
           githubUsername: githubUser.login,
           githubAvatarUrl: githubUser.avatarUrl,
-          githubAccessToken: accessToken, // Update OAuth token
           updatedAt: new Date(),
         })
         .where(eq(users.id, user.id));
@@ -63,14 +59,13 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
     const sessionToken = await createSession({
       userId: user.id,
       email: user.email,
-      isAdmin: user.isAdmin,
     });
 
     // Set session cookie
     setSessionCookie(cookies, sessionToken);
 
-    // Redirect to admin dashboard
-    return redirect('/admin');
+    // Redirect to dashboard
+    return redirect('/dashboard');
   } catch (error) {
     console.error('GitHub OAuth callback error:', error);
     return redirect('/login?error=server_error');

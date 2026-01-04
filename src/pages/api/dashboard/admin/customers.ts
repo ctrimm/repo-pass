@@ -1,9 +1,9 @@
 import type { APIRoute } from 'astro';
-import { db, purchases, repositories } from '../../../db';
+import { db, purchases, repositories } from '../../../../db';
 import { eq, desc } from 'drizzle-orm';
-import { requireAdmin } from '../../../lib/auth';
-import { removeCollaborator } from '../../../lib/github';
-import { sendEmail, emailTemplates } from '../../../lib/email';
+import { requireAdmin } from '../../../../lib/auth';
+import { removeCollaborator } from '../../../../lib/github';
+import { sendEmail, emailTemplates } from '../../../../lib/email';
 
 export const GET: APIRoute = async ({ url, cookies }) => {
   try {
