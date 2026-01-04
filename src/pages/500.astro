@@ -1,39 +1,42 @@
 ---
+import PostHogLayout from '../layouts/PostHogLayout.astro';
 import Layout from '../layouts/main.astro';
 ---
 
-<Layout title="Server Error - RepoPass">
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-    <div class="max-w-md w-full text-center">
-      <div class="mb-8">
-        <h1 class="text-9xl font-bold text-red-600">500</h1>
-        <h2 class="text-3xl font-bold text-gray-900 mt-4">Server Error</h2>
-        <p class="text-gray-600 mt-4">
-          Oops! Something went wrong on our end. Our team has been notified and we're working on
-          fixing it.
-        </p>
-      </div>
+<PostHogLayout>
+  <Layout title="Server Error - RepoPass">
+    <div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div class="max-w-md w-full text-center">
+        <div class="mb-8">
+          <h1 class="text-9xl font-bold text-red-600">500</h1>
+          <h2 class="text-3xl font-bold text-gray-900 mt-4">Server Error</h2>
+          <p class="text-gray-600 mt-4">
+            Oops! Something went wrong on our end. Our team has been notified and we're working on
+            fixing it.
+          </p>
+        </div>
 
-      <div class="space-y-3">
-        <button
-          onclick="window.location.reload()"
-          class="block w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-        >
-          Try Again
-        </button>
-        <a
-          href="/"
-          class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-medium transition-colors"
-        >
-          Go to Homepage
-        </a>
-      </div>
+        <div class="space-y-3">
+          <button
+            onclick="window.location.reload()"
+            class="block w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            Try Again
+          </button>
+          <a
+            href="/"
+            class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            Go to Homepage
+          </a>
+        </div>
 
-      <div class="mt-8 pt-8 border-t border-gray-200">
-        <p class="text-sm text-gray-500">
-          If this problem persists, please contact support with the error details.
-        </p>
+        <div class="mt-8 pt-8 border-t border-gray-200">
+          <p class="text-sm text-gray-500">
+            If this problem persists, please contact support with the error details.
+          </p>
+        </div>
       </div>
     </div>
-  </div>
-</Layout>
+  </Layout>
+</PostHogLayout>
