@@ -1,11 +1,15 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, repositories, purchases } from '../../db';
+import { db, repositories, purchases, users } from '../../db';
 import { eq } from 'drizzle-orm';
-import { createCheckoutSession } from '../../lib/stripe';
-import { env } from '../../lib/env';
 import { sendEmail, emailTemplates } from '../../lib/email';
 import { checkRateLimit, getClientId } from '../../lib/rate-limit';
+import {
+  PaymentProviderFactory,
+  getUserPaymentCredentials,
+  hasPaymentProvider,
+} from '../../lib/payments/factory';
+import { decrypt } from '../../lib/crypto';
 
 const checkoutSchema = z.object({
   repositoryId: z.string().uuid(),
@@ -60,6 +64,103 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
+    // Get repository owner
+    const owner = await db.query.users.findFirst({
+      where: eq(users.id, repository.ownerId),
+    });
+
+    if (!owner) {
+      return new Response(JSON.stringify({ error: 'Repository owner not found' }), {
+        status: 404,
+      });
+    }
+
+    // Check if owner has configured a payment provider
+    if (!hasPaymentProvider(owner)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'Payment provider not configured. Repository owner must configure a payment provider in settings.',
+        }),
+        { status: 400 }
+      );
+    }
+
+    // Get owner's payment credentials and decrypt them
+    const credentials = getUserPaymentCredentials(owner);
+    if (!credentials) {
+      return new Response(JSON.stringify({ error: 'Invalid payment provider configuration' }), {
+        status: 500,
+      });
+    }
+
+    // Decrypt sensitive credentials
+    const decryptedCredentials = {
+      ...credentials,
+      credentials: {
+        stripeSecretKey: credentials.credentials.stripeSecretKey
+          ? decrypt(credentials.credentials.stripeSecretKey) || undefined
+          : undefined,
+        stripePublishableKey: credentials.credentials.stripePublishableKey,
+        lemonSqueezyApiKey: credentials.credentials.lemonSqueezyApiKey
+          ? decrypt(credentials.credentials.lemonSqueezyApiKey) || undefined
+          : undefined,
+        lemonSqueezyStoreId: credentials.credentials.lemonSqueezyStoreId,
+        gumroadAccessToken: credentials.credentials.gumroadAccessToken
+          ? decrypt(credentials.credentials.gumroadAccessToken) || undefined
+          : undefined,
+        paddleVendorId: credentials.credentials.paddleVendorId,
+        paddleApiKey: credentials.credentials.paddleApiKey
+          ? decrypt(credentials.credentials.paddleApiKey) || undefined
+          : undefined,
+      },
+    };
+
+    // Initialize payment provider
+    const provider = await PaymentProviderFactory.createAndInitialize(decryptedCredentials);
+
+    // If repository doesn't have product/price IDs, create them
+    if (!repository.externalProductId || !repository.externalPriceId) {
+      const interval =
+        repository.pricingType === 'subscription'
+          ? repository.subscriptionCadence === 'monthly'
+            ? 'month'
+            : repository.subscriptionCadence === 'yearly'
+              ? 'year'
+              : 'one-time'
+          : 'one-time';
+
+      const productResult = await provider.createProduct(
+        {
+          name: repository.displayName,
+          description: repository.description || undefined,
+          imageUrl: repository.coverImageUrl || undefined,
+          repositoryId: repository.id,
+          githubOwner: repository.githubOwner,
+          githubRepoName: repository.githubRepoName,
+        },
+        {
+          amountCents: repository.priceCents,
+          currency: 'usd',
+          interval,
+        }
+      );
+
+      // Update repository with external IDs
+      await db
+        .update(repositories)
+        .set({
+          externalProductId: productResult.productId,
+          externalPriceId: productResult.priceId,
+          paymentProvider: credentials.provider,
+          updatedAt: new Date(),
+        })
+        .where(eq(repositories.id, repository.id));
+
+      repository.externalProductId = productResult.productId;
+      repository.externalPriceId = productResult.priceId;
+    }
+
     // Create pending purchase record
     const [purchase] = await db
       .insert(purchases)
@@ -74,23 +175,12 @@ export const POST: APIRoute = async ({ request }) => {
       })
       .returning();
 
-    // Create Stripe checkout session
-    // Note: 'custom' cadence is handled differently, not supported in Stripe checkout
-    const subscriptionCadence =
-      repository.subscriptionCadence === 'monthly' || repository.subscriptionCadence === 'yearly'
-        ? repository.subscriptionCadence
-        : undefined;
-
-    const { sessionId, sessionUrl } = await createCheckoutSession({
+    // Create checkout URL using the payment provider
+    const checkoutUrl = await provider.createCheckoutUrl(repository.externalPriceId, {
       repositoryId: repository.id,
-      repositoryName: repository.displayName,
-      priceCents: repository.priceCents,
-      pricingType: repository.pricingType as 'one-time' | 'subscription',
-      subscriptionCadence,
-      customerEmail: email,
+      email,
       githubUsername,
-      successUrl: `${env.SITE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${env.SITE_URL}/products/${repository.slug}?canceled=true`,
+      purchaseId: purchase.id,
     });
 
     // Send confirmation email
@@ -113,9 +203,9 @@ export const POST: APIRoute = async ({ request }) => {
 
     return new Response(
       JSON.stringify({
-        sessionId,
-        sessionUrl,
+        checkoutUrl,
         purchaseId: purchase.id,
+        provider: credentials.provider,
       }),
       {
         status: 200,

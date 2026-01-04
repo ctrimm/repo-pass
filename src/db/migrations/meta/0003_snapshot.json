@@ -60,13 +60,9 @@
         "access_logs_purchase_id_purchases_id_fk": {
           "name": "access_logs_purchase_id_purchases_id_fk",
           "tableFrom": "access_logs",
-          "columnsFrom": [
-            "purchase_id"
-          ],
+          "columnsFrom": ["purchase_id"],
           "tableTo": "purchases",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -145,26 +141,18 @@
         "pricing_history_repository_id_repositories_id_fk": {
           "name": "pricing_history_repository_id_repositories_id_fk",
           "tableFrom": "pricing_history",
-          "columnsFrom": [
-            "repository_id"
-          ],
+          "columnsFrom": ["repository_id"],
           "tableTo": "repositories",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "pricing_history_changed_by_users_id_fk": {
           "name": "pricing_history_changed_by_users_id_fk",
           "tableFrom": "pricing_history",
-          "columnsFrom": [
-            "changed_by"
-          ],
+          "columnsFrom": ["changed_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -231,13 +219,9 @@
         "products_repository_id_repositories_id_fk": {
           "name": "products_repository_id_repositories_id_fk",
           "tableFrom": "products",
-          "columnsFrom": [
-            "repository_id"
-          ],
+          "columnsFrom": ["repository_id"],
           "tableTo": "repositories",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -246,24 +230,17 @@
       "uniqueConstraints": {
         "products_stripe_product_id_unique": {
           "name": "products_stripe_product_id_unique",
-          "columns": [
-            "stripe_product_id"
-          ],
+          "columns": ["stripe_product_id"],
           "nullsNotDistinct": false
         },
         "products_stripe_price_id_unique": {
           "name": "products_stripe_price_id_unique",
-          "columns": [
-            "stripe_price_id"
-          ],
+          "columns": ["stripe_price_id"],
           "nullsNotDistinct": false
         },
         "unique_repo_tier": {
           "name": "unique_repo_tier",
-          "columns": [
-            "repository_id",
-            "price_tier"
-          ],
+          "columns": ["repository_id", "price_tier"],
           "nullsNotDistinct": false
         }
       },
@@ -390,39 +367,27 @@
         "purchases_repository_id_repositories_id_fk": {
           "name": "purchases_repository_id_repositories_id_fk",
           "tableFrom": "purchases",
-          "columnsFrom": [
-            "repository_id"
-          ],
+          "columnsFrom": ["repository_id"],
           "tableTo": "repositories",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "purchases_product_id_products_id_fk": {
           "name": "purchases_product_id_products_id_fk",
           "tableFrom": "purchases",
-          "columnsFrom": [
-            "product_id"
-          ],
+          "columnsFrom": ["product_id"],
           "tableTo": "products",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "purchases_revoked_by_users_id_fk": {
           "name": "purchases_revoked_by_users_id_fk",
           "tableFrom": "purchases",
-          "columnsFrom": [
-            "revoked_by"
-          ],
+          "columnsFrom": ["revoked_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -552,13 +517,9 @@
         "repositories_owner_id_users_id_fk": {
           "name": "repositories_owner_id_users_id_fk",
           "tableFrom": "repositories",
-          "columnsFrom": [
-            "owner_id"
-          ],
+          "columnsFrom": ["owner_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -567,17 +528,12 @@
       "uniqueConstraints": {
         "repositories_slug_unique": {
           "name": "repositories_slug_unique",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "nullsNotDistinct": false
         },
         "unique_github_repo": {
           "name": "unique_github_repo",
-          "columns": [
-            "github_owner",
-            "github_repo_name"
-          ],
+          "columns": ["github_owner", "github_repo_name"],
           "nullsNotDistinct": false
         }
       },
@@ -673,16 +629,12 @@
       "uniqueConstraints": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "nullsNotDistinct": false
         },
         "users_github_oauth_id_unique": {
           "name": "users_github_oauth_id_unique",
-          "columns": [
-            "github_oauth_id"
-          ],
+          "columns": ["github_oauth_id"],
           "nullsNotDistinct": false
         }
       },
@@ -708,64 +660,37 @@
     "public.access_log_status": {
       "name": "access_log_status",
       "schema": "public",
-      "values": [
-        "success",
-        "failed",
-        "retry"
-      ]
+      "values": ["success", "failed", "retry"]
     },
     "public.access_status": {
       "name": "access_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "active",
-        "revoked"
-      ]
+      "values": ["pending", "active", "revoked"]
     },
     "public.pricing_type": {
       "name": "pricing_type",
       "schema": "public",
-      "values": [
-        "one-time",
-        "subscription"
-      ]
+      "values": ["one-time", "subscription"]
     },
     "public.purchase_status": {
       "name": "purchase_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "completed",
-        "failed",
-        "canceled"
-      ]
+      "values": ["pending", "completed", "failed", "canceled"]
     },
     "public.purchase_type": {
       "name": "purchase_type",
       "schema": "public",
-      "values": [
-        "one-time",
-        "subscription"
-      ]
+      "values": ["one-time", "subscription"]
     },
     "public.role": {
       "name": "role",
       "schema": "public",
-      "values": [
-        "admin",
-        "creator",
-        "none"
-      ]
+      "values": ["admin", "creator", "none"]
     },
     "public.subscription_cadence": {
       "name": "subscription_cadence",
       "schema": "public",
-      "values": [
-        "monthly",
-        "yearly",
-        "custom"
-      ]
+      "values": ["monthly", "yearly", "custom"]
     }
   },
   "schemas": {},

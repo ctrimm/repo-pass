@@ -1,10 +1,10 @@
 ---
 import PostHogLayout from '@/layouts/PostHogLayout.astro';
 import Layout from '../../../layouts/main.astro';
-import { requireAdmin } from '../../../lib/auth';
+import { requireAuth } from '../../../lib/auth';
 
-// Require admin access
-await requireAdmin(Astro.cookies).catch(() => {
+// Require authentication
+await requireAuth(Astro.cookies).catch(() => {
   return Astro.redirect('/');
 });
 ---

@@ -3,6 +3,7 @@ import { db, users } from '../../../../db';
 import { eq } from 'drizzle-orm';
 import { exchangeOAuthCode, getUserInfo } from '../../../../lib/github';
 import { createSession, setSessionCookie } from '../../../../lib/auth';
+import { encrypt } from '../../../../lib/crypto';
 import { env } from '../../../../lib/env';
 
 export const GET: APIRoute = async ({ url, cookies, redirect }) => {
@@ -37,19 +38,21 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
           githubOauthId: githubUser.id.toString(),
           githubUsername: githubUser.login,
           githubAvatarUrl: githubUser.avatarUrl,
+          githubPersonalAccessToken: encrypt(accessToken),
           role: 'user',
         })
         .returning();
 
       user = newUser;
     } else {
-      // Update existing user
+      // Update existing user and refresh OAuth token
       await db
         .update(users)
         .set({
           githubOauthId: githubUser.id.toString(),
           githubUsername: githubUser.login,
           githubAvatarUrl: githubUser.avatarUrl,
+          githubPersonalAccessToken: encrypt(accessToken),
           updatedAt: new Date(),
         })
         .where(eq(users.id, user.id));
