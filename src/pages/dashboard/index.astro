@@ -1,7 +1,7 @@
 ---
 import PostHogLayout from '../../layouts/PostHogLayout.astro';
 import Layout from '../../layouts/main.astro';
-import AdminNav from '../../components/AdminNav.astro';
+import DashboardNav from '../../components/DashboardNav.astro';
 import { requireAdmin } from '../../lib/auth';
 
 // Require admin access
@@ -35,7 +35,7 @@ const activeCustomers = (customers || []).filter((c) => c.accessStatus === 'acti
 <PostHogLayout>
   <Layout title="Admin Dashboard - RepoPass">
     <div class="min-h-screen bg-gray-50">
-      <AdminNav />
+      <DashboardNav />
 
       <!-- Main Content -->
       <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
