@@ -2,6 +2,7 @@ import { Octokit } from '@octokit/rest';
 import { env } from './env';
 import { db, users } from '../db';
 import { eq } from 'drizzle-orm';
+import { decrypt } from './crypto';
 
 // Get user's OAuth token by userId (falls back to PAT if not available)
 async function getUserGitHubToken(userId: string): Promise<string> {
@@ -10,8 +11,16 @@ async function getUserGitHubToken(userId: string): Promise<string> {
       where: eq(users.id, userId),
     });
 
-    // Use user's Personal Access Token if available, otherwise fall back to env PAT
-    return user?.githubPersonalAccessToken || env.GITHUB_PERSONAL_ACCESS_TOKEN;
+    // Decrypt user's Personal Access Token if available, otherwise fall back to env PAT
+    if (user?.githubPersonalAccessToken) {
+      try {
+        return decrypt(user.githubPersonalAccessToken) || env.GITHUB_PERSONAL_ACCESS_TOKEN;
+      } catch (error) {
+        console.warn('Failed to decrypt GitHub PAT, using env PAT:', error);
+        return env.GITHUB_PERSONAL_ACCESS_TOKEN;
+      }
+    }
+    return env.GITHUB_PERSONAL_ACCESS_TOKEN;
   } catch (error) {
     console.warn('Failed to get user OAuth token, using PAT:', error);
     return env.GITHUB_PERSONAL_ACCESS_TOKEN;

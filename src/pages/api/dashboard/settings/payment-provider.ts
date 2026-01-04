@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireAuth } from '../../../../lib/auth';
 import { db, users } from '../../../../db';
 import { eq } from 'drizzle-orm';
+import { encrypt } from '../../../../lib/crypto';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   try {
@@ -29,34 +30,45 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     updateData.paddleVendorId = null;
     updateData.paddleApiKey = null;
 
-    // Set fields for selected provider
+    // Set fields for selected provider (ENCRYPT sensitive data)
     if (provider === 'stripe') {
-      updateData.stripeSecretKey = formData.get('stripe_secret_key') as string;
-      updateData.stripePublishableKey = formData.get('stripe_publishable_key') as string;
+      const secretKey = formData.get('stripe_secret_key') as string;
+      const publishableKey = formData.get('stripe_publishable_key') as string;
 
-      if (!updateData.stripeSecretKey || !updateData.stripePublishableKey) {
+      if (!secretKey || !publishableKey) {
         return new Response('Stripe keys are required', { status: 400 });
       }
-    } else if (provider === 'lemon_squeezy') {
-      updateData.lemonSqueezyApiKey = formData.get('lemon_squeezy_api_key') as string;
-      updateData.lemonSqueezyStoreId = formData.get('lemon_squeezy_store_id') as string;
 
-      if (!updateData.lemonSqueezyApiKey || !updateData.lemonSqueezyStoreId) {
+      updateData.stripeSecretKey = encrypt(secretKey);
+      updateData.stripePublishableKey = publishableKey; // Publishable key is not secret
+    } else if (provider === 'lemon_squeezy') {
+      const apiKey = formData.get('lemon_squeezy_api_key') as string;
+      const storeId = formData.get('lemon_squeezy_store_id') as string;
+
+      if (!apiKey || !storeId) {
         return new Response('Lemon Squeezy API key and Store ID are required', { status: 400 });
       }
-    } else if (provider === 'gumroad') {
-      updateData.gumroadAccessToken = formData.get('gumroad_access_token') as string;
 
-      if (!updateData.gumroadAccessToken) {
+      updateData.lemonSqueezyApiKey = encrypt(apiKey);
+      updateData.lemonSqueezyStoreId = storeId; // Store ID is not secret
+    } else if (provider === 'gumroad') {
+      const accessToken = formData.get('gumroad_access_token') as string;
+
+      if (!accessToken) {
         return new Response('Gumroad access token is required', { status: 400 });
       }
-    } else if (provider === 'paddle') {
-      updateData.paddleVendorId = formData.get('paddle_vendor_id') as string;
-      updateData.paddleApiKey = formData.get('paddle_api_key') as string;
 
-      if (!updateData.paddleVendorId || !updateData.paddleApiKey) {
+      updateData.gumroadAccessToken = encrypt(accessToken);
+    } else if (provider === 'paddle') {
+      const vendorId = formData.get('paddle_vendor_id') as string;
+      const apiKey = formData.get('paddle_api_key') as string;
+
+      if (!vendorId || !apiKey) {
         return new Response('Paddle Vendor ID and API key are required', { status: 400 });
       }
+
+      updateData.paddleVendorId = vendorId; // Vendor ID is not secret
+      updateData.paddleApiKey = encrypt(apiKey);
     } else {
       return new Response('Invalid provider', { status: 400 });
     }

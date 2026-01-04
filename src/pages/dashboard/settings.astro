@@ -274,6 +274,42 @@ const paymentProvider = user.paymentProvider || '';
         </button>
       </form>
     </div>
+
+    <!-- Email Preferences Section (GDPR Compliance) -->
+    <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Email Preferences</h2>
+      <p class="text-sm text-gray-600 mb-6">
+        Control what emails you receive from RepoPass. Note: Critical notifications about your
+        account will still be sent.
+      </p>
+
+      <form method="POST" action="/api/dashboard/settings/email-preferences">
+        <div class="mb-4">
+          <label class="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              name="email_notifications"
+              checked={user.emailNotifications}
+              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span class="text-sm text-gray-700">
+              I want to receive email notifications about purchases, updates, and announcements
+            </span>
+          </label>
+          <p class="text-xs text-gray-500 mt-2 ml-7">
+            Uncheck to opt-out of non-essential emails. You'll still receive critical account and
+            payment notifications.
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+        >
+          Save Preferences
+        </button>
+      </form>
+    </div>
   </div>
 
   <script>

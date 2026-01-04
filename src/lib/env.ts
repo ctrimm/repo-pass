@@ -34,6 +34,7 @@ const envSchema = z.object({
   // Auth
   JWT_SECRET: z.string().min(32),
   SESSION_SECRET: z.string().min(32),
+  ENCRYPTION_SECRET: z.string().min(32),
 
   // Admin
   ADMIN_EMAIL: z.string().email(),

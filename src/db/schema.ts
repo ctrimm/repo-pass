@@ -65,6 +65,9 @@ export const users = pgTable('users', {
   paddleVendorId: varchar('paddle_vendor_id', { length: 255 }),
   paddleApiKey: text('paddle_api_key'),
 
+  // GDPR & Privacy
+  emailNotifications: boolean('email_notifications').default(true).notNull(), // User consent for emails
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { requireAuth } from '../../../../lib/auth';
 import { db, users } from '../../../../db';
 import { eq } from 'drizzle-orm';
+import { encrypt } from '../../../../lib/crypto';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   try {
@@ -21,10 +22,11 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
     // TODO: In production, verify the token with GitHub API before saving
 
+    // Encrypt the PAT before storing
     await db
       .update(users)
       .set({
-        githubPersonalAccessToken: githubPat,
+        githubPersonalAccessToken: encrypt(githubPat),
         updatedAt: new Date(),
       })
       .where(eq(users.id, session.userId));

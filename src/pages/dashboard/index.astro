@@ -3,7 +3,13 @@ import PostHogLayout from '../../layouts/PostHogLayout.astro';
 import Layout from '../../layouts/main.astro';
 import DashboardNav from '../../components/DashboardNav.astro';
 import { requireAdmin } from '../../lib/auth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 
@@ -60,7 +66,8 @@ const totalPurchases = (customers || []).length;
             <CardContent>
               <div class="text-3xl font-bold">${(totalRevenue / 100).toFixed(2)}</div>
               <p class="text-xs text-muted-foreground mt-1">
-                From {totalPurchases} {totalPurchases === 1 ? 'purchase' : 'purchases'}
+                From {totalPurchases}
+                {totalPurchases === 1 ? 'purchase' : 'purchases'}
               </p>
             </CardContent>
           </Card>
@@ -71,9 +78,7 @@ const totalPurchases = (customers || []).length;
             </CardHeader>
             <CardContent>
               <div class="text-3xl font-bold">{activeCustomers}</div>
-              <p class="text-xs text-muted-foreground mt-1">
-                With repository access
-              </p>
+              <p class="text-xs text-muted-foreground mt-1">With repository access</p>
             </CardContent>
           </Card>
 
@@ -158,10 +163,7 @@ const totalPurchases = (customers || []).length;
                               : repo.pricingType}
                           </td>
                           <td class="px-4 py-3">
-                            <Badge
-                              client:load
-                              variant={repo.active ? 'success' : 'secondary'}
-                            >
+                            <Badge client:load variant={repo.active ? 'success' : 'secondary'}>
                               {repo.active ? 'Active' : 'Inactive'}
                             </Badge>
                           </td>
@@ -202,10 +204,7 @@ const totalPurchases = (customers || []).length;
               </div>
               {
                 customers.length > 5 && (
-                  <a
-                    href="/dashboard/customers"
-                    class="text-sm text-primary hover:underline"
-                  >
+                  <a href="/dashboard/customers" class="text-sm text-primary hover:underline">
                     View all
                   </a>
                 )
