@@ -15,7 +15,7 @@ const reposResponse = await fetch(`${Astro.url.origin}/api/admin/repositories`, 
     Cookie: Astro.request.headers.get('Cookie') || '',
   },
 });
-const { repositories } = await reposResponse.json();
+const { repositories = [] } = await reposResponse.json();
 
 // Fetch customers
 const customersResponse = await fetch(`${Astro.url.origin}/api/admin/customers`, {
@@ -23,13 +23,13 @@ const customersResponse = await fetch(`${Astro.url.origin}/api/admin/customers`,
     Cookie: Astro.request.headers.get('Cookie') || '',
   },
 });
-const { customers } = await customersResponse.json();
+const { customers = [] } = await customersResponse.json();
 
-const totalRevenue = customers
+const totalRevenue = (customers || [])
   .filter((c) => c.status === 'completed')
   .reduce((sum, c) => sum + c.amountCents, 0);
 
-const activeCustomers = customers.filter((c) => c.accessStatus === 'active').length;
+const activeCustomers = (customers || []).filter((c) => c.accessStatus === 'active').length;
 ---
 
 <PostHogLayout>

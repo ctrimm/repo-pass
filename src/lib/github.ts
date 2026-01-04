@@ -1,18 +1,38 @@
 import { Octokit } from '@octokit/rest';
 import { env } from './env';
+import { db, users } from '../db';
+import { eq } from 'drizzle-orm';
 
-// Create GitHub client with service PAT
-const octokit = new Octokit({
-  auth: env.GITHUB_PERSONAL_ACCESS_TOKEN,
-});
+// Get user's OAuth token by userId (falls back to PAT if not available)
+async function getUserGitHubToken(userId: string): Promise<string> {
+  try {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    // Use user's OAuth token if available, otherwise fall back to PAT
+    return user?.githubAccessToken || env.GITHUB_PERSONAL_ACCESS_TOKEN;
+  } catch (error) {
+    console.warn('Failed to get user OAuth token, using PAT:', error);
+    return env.GITHUB_PERSONAL_ACCESS_TOKEN;
+  }
+}
+
+// Create GitHub client for a specific user
+async function createOctokit(userId: string) {
+  const token = await getUserGitHubToken(userId);
+  return new Octokit({ auth: token });
+}
 
 export interface AddCollaboratorOptions {
+  userId: string; // User who owns the repository
   owner: string;
   repo: string;
   username: string;
 }
 
 export interface RemoveCollaboratorOptions {
+  userId: string; // User who owns the repository
   owner: string;
   repo: string;
   username: string;
@@ -21,8 +41,9 @@ export interface RemoveCollaboratorOptions {
 /**
  * Check if a GitHub user exists
  */
-export async function checkUserExists(username: string): Promise<boolean> {
+export async function checkUserExists(userId: string, username: string): Promise<boolean> {
   try {
+    const octokit = await createOctokit(userId);
     await octokit.users.getByUsername({ username });
     return true;
   } catch (error: any) {
@@ -36,14 +57,15 @@ export async function checkUserExists(username: string): Promise<boolean> {
 /**
  * Add a collaborator to a repository with read-only access
  */
-export async function addCollaborator({ owner, repo, username }: AddCollaboratorOptions) {
+export async function addCollaborator({ userId, owner, repo, username }: AddCollaboratorOptions) {
   try {
     // First check if user exists
-    const userExists = await checkUserExists(username);
+    const userExists = await checkUserExists(userId, username);
     if (!userExists) {
       throw new Error(`GitHub user '${username}' does not exist`);
     }
 
+    const octokit = await createOctokit(userId);
     // Add as collaborator with pull (read) permission
     await octokit.repos.addCollaborator({
       owner,
@@ -62,8 +84,9 @@ export async function addCollaborator({ owner, repo, username }: AddCollaborator
 /**
  * Remove a collaborator from a repository
  */
-export async function removeCollaborator({ owner, repo, username }: RemoveCollaboratorOptions) {
+export async function removeCollaborator({ userId, owner, repo, username }: RemoveCollaboratorOptions) {
   try {
+    const octokit = await createOctokit(userId);
     await octokit.repos.removeCollaborator({
       owner,
       repo,
@@ -80,8 +103,9 @@ export async function removeCollaborator({ owner, repo, username }: RemoveCollab
 /**
  * Get repository metadata from GitHub
  */
-export async function getRepositoryMetadata(owner: string, repo: string) {
+export async function getRepositoryMetadata(userId: string, owner: string, repo: string) {
   try {
+    const octokit = await createOctokit(userId);
     const { data } = await octokit.repos.get({
       owner,
       repo,
@@ -97,6 +121,34 @@ export async function getRepositoryMetadata(owner: string, repo: string) {
   } catch (error: any) {
     console.error('Failed to get repository metadata:', error);
     throw new Error(`Failed to get repository metadata: ${error.message}`);
+  }
+}
+
+/**
+ * Get all repositories for a user
+ */
+export async function getUserRepositories(userId: string) {
+  try {
+    const octokit = await createOctokit(userId);
+    const { data } = await octokit.repos.listForAuthenticatedUser({
+      per_page: 100,
+      sort: 'updated',
+      affiliation: 'owner', // Only repos the user owns
+    });
+
+    return data.map((repo) => ({
+      id: repo.id,
+      name: repo.name,
+      fullName: repo.full_name,
+      owner: repo.owner.login,
+      description: repo.description,
+      isPrivate: repo.private,
+      stars: repo.stargazers_count,
+      url: repo.html_url,
+    }));
+  } catch (error: any) {
+    console.error('Failed to get user repositories:', error);
+    throw new Error(`Failed to get repositories: ${error.message}`);
   }
 }
 

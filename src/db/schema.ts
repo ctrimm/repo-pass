@@ -46,6 +46,7 @@ export const users = pgTable('users', {
   githubOauthId: varchar('github_oauth_id', { length: 255 }).unique(),
   githubUsername: varchar('github_username', { length: 255 }),
   githubAvatarUrl: text('github_avatar_url'),
+  githubAccessToken: text('github_access_token'), // OAuth token with repo access
   stripeAccountId: varchar('stripe_account_id', { length: 255 }),
   role: roleEnum('role').default('admin').notNull(),
   isAdmin: boolean('is_admin').default(false).notNull(),

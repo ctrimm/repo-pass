@@ -48,8 +48,11 @@ The `.env` file has already been created with development placeholder values. **
 </details>
 
 <details>
-<summary><strong>GitHub Personal Access Token (Required for Adding Collaborators)</strong></summary>
+<summary><strong>GitHub Personal Access Token (Optional - OAuth is preferred)</strong></summary>
 
+**Note:** When you sign in with GitHub OAuth, the app will request `repo` scope which gives it access to add collaborators. You only need a PAT as a fallback.
+
+If you want to use a PAT instead:
 1. Go to https://github.com/settings/tokens
 2. Click "Generate new token (classic)"
 3. Name: "RepoPass Dev"

@@ -20,18 +20,17 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
     // Get user info from GitHub
     const githubUser = await getUserInfo(accessToken);
 
-    // Check if user is the admin
-    if (githubUser.email !== env.ADMIN_EMAIL) {
-      return redirect('/login?error=unauthorized');
+    if (!githubUser.email) {
+      return redirect('/?error=no_email');
     }
 
-    // Find or create user in database
+    // Find or create user in database (any GitHub user can sign in)
     let user = await db.query.users.findFirst({
       where: eq(users.email, githubUser.email),
     });
 
     if (!user) {
-      // Create new user
+      // Create new user - they become admin for their own repositories
       const [newUser] = await db
         .insert(users)
         .values({
@@ -39,8 +38,9 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
           githubOauthId: githubUser.id.toString(),
           githubUsername: githubUser.login,
           githubAvatarUrl: githubUser.avatarUrl,
+          githubAccessToken: accessToken, // Store OAuth token for repo access
           role: 'admin',
-          isAdmin: true,
+          isAdmin: true, // Each user is admin for their own repos
         })
         .returning();
 
@@ -53,6 +53,7 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
           githubOauthId: githubUser.id.toString(),
           githubUsername: githubUser.login,
           githubAvatarUrl: githubUser.avatarUrl,
+          githubAccessToken: accessToken, // Update OAuth token
           updatedAt: new Date(),
         })
         .where(eq(users.id, user.id));

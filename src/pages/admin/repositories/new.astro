@@ -21,6 +21,22 @@ await requireAdmin(Astro.cookies).catch(() => {
       <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="bg-white rounded-lg shadow p-6">
           <form id="add-repo-form" class="space-y-6">
+            <!-- Repository Selector -->
+            <div class="pb-6 border-b border-gray-200">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Select from your GitHub repositories
+              </label>
+              <select
+                id="repo-selector"
+                class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+              >
+                <option value="">Loading your repositories...</option>
+              </select>
+              <p class="mt-2 text-sm text-gray-500">
+                Or manually enter repository details below
+              </p>
+            </div>
+
             <div>
               <label class="block text-sm font-medium text-gray-700">GitHub Owner</label>
               <input
@@ -123,6 +139,58 @@ await requireAdmin(Astro.cookies).catch(() => {
   const form = document.getElementById('add-repo-form') as HTMLFormElement;
   const pricingType = form.querySelector('[name="pricingType"]') as HTMLSelectElement;
   const subscriptionOptions = document.getElementById('subscription-options');
+  const repoSelector = document.getElementById('repo-selector') as HTMLSelectElement;
+
+  // Fetch user's repositories
+  async function loadRepositories() {
+    try {
+      const response = await fetch('/api/auth/github/repositories');
+      if (!response.ok) {
+        throw new Error('Failed to fetch repositories');
+      }
+
+      const { repositories } = await response.json();
+
+      // Clear loading option
+      repoSelector.innerHTML = '<option value="">-- Select a repository --</option>';
+
+      // Add repositories to dropdown
+      repositories.forEach((repo: any) => {
+        const option = document.createElement('option');
+        option.value = JSON.stringify(repo);
+        option.textContent = `${repo.fullName} ${repo.isPrivate ? '(Private)' : '(Public)'}`;
+        repoSelector.appendChild(option);
+      });
+    } catch (error) {
+      console.error('Error loading repositories:', error);
+      repoSelector.innerHTML = '<option value="">Failed to load repositories</option>';
+    }
+  }
+
+  // Auto-fill form when repository is selected
+  repoSelector.addEventListener('change', (e) => {
+    const value = (e.target as HTMLSelectElement).value;
+    if (!value) return;
+
+    try {
+      const repo = JSON.parse(value);
+
+      // Auto-fill form fields
+      (form.querySelector('[name="githubOwner"]') as HTMLInputElement).value = repo.owner;
+      (form.querySelector('[name="githubRepoName"]') as HTMLInputElement).value = repo.name;
+      (form.querySelector('[name="displayName"]') as HTMLInputElement).value = repo.name
+        .split('-')
+        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      (form.querySelector('[name="description"]') as HTMLTextAreaElement).value =
+        repo.description || '';
+    } catch (error) {
+      console.error('Error parsing repository data:', error);
+    }
+  });
+
+  // Load repositories on page load
+  loadRepositories();
 
   pricingType.addEventListener('change', () => {
     if (pricingType.value === 'subscription') {
