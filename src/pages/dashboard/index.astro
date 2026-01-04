@@ -3,14 +3,17 @@ import PostHogLayout from '../../layouts/PostHogLayout.astro';
 import Layout from '../../layouts/main.astro';
 import DashboardNav from '../../components/DashboardNav.astro';
 import { requireAdmin } from '../../lib/auth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 
-// Require admin access
+// Require auth access
 const session = await requireAdmin(Astro.cookies).catch(() => {
   return Astro.redirect('/');
 });
 
 // Fetch repositories
-const reposResponse = await fetch(`${Astro.url.origin}/api/admin/repositories`, {
+const reposResponse = await fetch(`${Astro.url.origin}/api/dashboard/admin/repositories`, {
   headers: {
     Cookie: Astro.request.headers.get('Cookie') || '',
   },
@@ -18,7 +21,7 @@ const reposResponse = await fetch(`${Astro.url.origin}/api/admin/repositories`, 
 const { repositories = [] } = await reposResponse.json();
 
 // Fetch customers
-const customersResponse = await fetch(`${Astro.url.origin}/api/admin/customers`, {
+const customersResponse = await fetch(`${Astro.url.origin}/api/dashboard/admin/customers`, {
   headers: {
     Cookie: Astro.request.headers.get('Cookie') || '',
   },
@@ -30,179 +33,243 @@ const totalRevenue = (customers || [])
   .reduce((sum, c) => sum + c.amountCents, 0);
 
 const activeCustomers = (customers || []).filter((c) => c.accessStatus === 'active').length;
+const totalPurchases = (customers || []).length;
 ---
 
 <PostHogLayout>
-  <Layout title="Admin Dashboard - RepoPass">
-    <div class="min-h-screen bg-gray-50">
+  <Layout title="Dashboard - RepoPass">
+    <div class="min-h-screen bg-background">
       <DashboardNav />
 
       <!-- Main Content -->
       <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-sm font-medium text-gray-500">Total Revenue</h3>
-            <p class="text-3xl font-bold text-gray-900 mt-2">
-              ${(totalRevenue / 100).toFixed(2)}
-            </p>
-          </div>
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-sm font-medium text-gray-500">Active Customers</h3>
-            <p class="text-3xl font-bold text-gray-900 mt-2">{activeCustomers}</p>
-          </div>
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-sm font-medium text-gray-500">Repositories</h3>
-            <p class="text-3xl font-bold text-gray-900 mt-2">{repositories.length}</p>
-          </div>
+        <!-- Header -->
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p class="text-muted-foreground mt-2">
+            Manage your repositories and track customer access
+          </p>
         </div>
 
-        <!-- Repositories -->
-        <div class="bg-white rounded-lg shadow mb-8">
-          <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 class="text-lg font-semibold text-gray-900">Repositories</h2>
-            <a
-              href="/admin/repositories/new"
-              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-            >
-              Add Repository
-            </a>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Name</th
-                  >
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Price</th
-                  >
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Type</th
-                  >
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Status</th
-                  >
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Actions</th
-                  >
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                {
-                  repositories.map((repo) => (
-                    <tr>
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">{repo.displayName}</div>
-                        <div class="text-sm text-gray-500">
-                          {repo.githubOwner}/{repo.githubRepoName}
-                        </div>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${(repo.priceCents / 100).toFixed(2)}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {repo.pricingType === 'subscription'
-                          ? `${repo.subscriptionCadence} subscription`
-                          : 'One-time'}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <span
-                          class={`px-2 py-1 text-xs rounded-full ${repo.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
-                        >
-                          {repo.active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <a
-                          href={`/products/${repo.slug}`}
-                          class="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          View
-                        </a>
-                        <a
-                          href={`/admin/repositories/${repo.id}/edit`}
-                          class="text-indigo-600 hover:text-indigo-900"
-                        >
-                          Edit
-                        </a>
-                      </td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
-          </div>
+        <!-- Stats Grid -->
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card client:load>
+            <CardHeader className="pb-2">
+              <CardDescription>Total Revenue</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="text-3xl font-bold">${(totalRevenue / 100).toFixed(2)}</div>
+              <p class="text-xs text-muted-foreground mt-1">
+                From {totalPurchases} {totalPurchases === 1 ? 'purchase' : 'purchases'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card client:load>
+            <CardHeader className="pb-2">
+              <CardDescription>Active Customers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="text-3xl font-bold">{activeCustomers}</div>
+              <p class="text-xs text-muted-foreground mt-1">
+                With repository access
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card client:load>
+            <CardHeader className="pb-2">
+              <CardDescription>Repositories</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="text-3xl font-bold">{repositories.length}</div>
+              <p class="text-xs text-muted-foreground mt-1">
+                {repositories.filter((r) => r.active).length} active
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card client:load>
+            <CardHeader className="pb-2">
+              <CardDescription>Quick Action</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button client:load asChild className="w-full">
+                <a href="/dashboard/repositories/new">Add Repository</a>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
-        <!-- Recent Customers -->
-        <div class="bg-white rounded-lg shadow">
-          <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 class="text-lg font-semibold text-gray-900">Recent Customers</h2>
-            <a href="/admin/customers" class="text-blue-600 hover:text-blue-700 text-sm">View all</a
-            >
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Customer</th
+        <!-- Repositories Section -->
+        <Card client:load className="mb-8">
+          <CardHeader>
+            <div class="flex items-center justify-between">
+              <div>
+                <CardTitle>Your Repositories</CardTitle>
+                <CardDescription className="mt-1.5">
+                  Manage pricing and access for your GitHub repositories
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {
+              repositories.length === 0 ? (
+                <div class="text-center py-12">
+                  <p class="text-muted-foreground mb-4">No repositories yet</p>
+                  <Button client:load asChild>
+                    <a href="/dashboard/repositories/new">Add Your First Repository</a>
+                  </Button>
+                </div>
+              ) : (
+                <div class="rounded-md border">
+                  <table class="w-full">
+                    <thead class="border-b bg-muted/50">
+                      <tr>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Repository</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Price</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Type</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Status</th>
+                        <th class="px-4 py-3 text-right text-sm font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                      {repositories.map((repo) => (
+                        <tr class="hover:bg-muted/30 transition-colors">
+                          <td class="px-4 py-3">
+                            <div class="font-medium">{repo.displayName}</div>
+                            <div class="text-sm text-muted-foreground">
+                              {repo.githubOwner}/{repo.githubRepoName}
+                            </div>
+                          </td>
+                          <td class="px-4 py-3">
+                            {repo.pricingType === 'free' ? (
+                              <span class="text-sm font-medium text-muted-foreground">Free</span>
+                            ) : (
+                              <span class="text-sm font-medium">
+                                ${(repo.priceCents / 100).toFixed(2)}
+                              </span>
+                            )}
+                          </td>
+                          <td class="px-4 py-3 text-sm text-muted-foreground capitalize">
+                            {repo.pricingType === 'subscription'
+                              ? repo.subscriptionCadence
+                              : repo.pricingType}
+                          </td>
+                          <td class="px-4 py-3">
+                            <Badge
+                              client:load
+                              variant={repo.active ? 'success' : 'secondary'}
+                            >
+                              {repo.active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </td>
+                          <td class="px-4 py-3 text-right space-x-2">
+                            <a
+                              href={`/products/${repo.slug}`}
+                              class="text-sm text-primary hover:underline"
+                            >
+                              View
+                            </a>
+                            <span class="text-muted-foreground">·</span>
+                            <a
+                              href={`/dashboard/repositories/${repo.id}/edit`}
+                              class="text-sm text-primary hover:underline"
+                            >
+                              Edit
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            }
+          </CardContent>
+        </Card>
+
+        <!-- Recent Customers Section -->
+        <Card client:load>
+          <CardHeader>
+            <div class="flex items-center justify-between">
+              <div>
+                <CardTitle>Recent Customers</CardTitle>
+                <CardDescription className="mt-1.5">
+                  Latest purchases and access grants
+                </CardDescription>
+              </div>
+              {
+                customers.length > 5 && (
+                  <a
+                    href="/dashboard/customers"
+                    class="text-sm text-primary hover:underline"
                   >
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Repository</th
-                  >
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Amount</th
-                  >
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Status</th
-                  >
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >Date</th
-                  >
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                {
-                  customers.slice(0, 10).map((customer) => (
-                    <tr>
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">
-                          {customer.githubUsername}
-                        </div>
-                        <div class="text-sm text-gray-500">{customer.email}</div>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {customer.repositoryName}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${(customer.amountCents / 100).toFixed(2)}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <span
-                          class={`px-2 py-1 text-xs rounded-full ${
-                            customer.accessStatus === 'active'
-                              ? 'bg-green-100 text-green-800'
-                              : customer.accessStatus === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {customer.accessStatus}
-                        </span>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(customer.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
+                    View all
+                  </a>
+                )
+              }
+            </div>
+          </CardHeader>
+          <CardContent>
+            {
+              customers.length === 0 ? (
+                <div class="text-center py-8">
+                  <p class="text-muted-foreground">No customers yet</p>
+                  <p class="text-sm text-muted-foreground mt-1">
+                    Customers will appear here after they purchase access
+                  </p>
+                </div>
+              ) : (
+                <div class="rounded-md border">
+                  <table class="w-full">
+                    <thead class="border-b bg-muted/50">
+                      <tr>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Customer</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Repository</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Amount</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Status</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                      {customers.slice(0, 5).map((customer) => (
+                        <tr class="hover:bg-muted/30 transition-colors">
+                          <td class="px-4 py-3">
+                            <div class="font-medium">{customer.githubUsername}</div>
+                            <div class="text-sm text-muted-foreground">{customer.email}</div>
+                          </td>
+                          <td class="px-4 py-3 text-sm">{customer.repositoryName}</td>
+                          <td class="px-4 py-3 text-sm font-medium">
+                            ${(customer.amountCents / 100).toFixed(2)}
+                          </td>
+                          <td class="px-4 py-3">
+                            <Badge
+                              client:load
+                              variant={
+                                customer.accessStatus === 'active'
+                                  ? 'success'
+                                  : customer.accessStatus === 'pending'
+                                    ? 'warning'
+                                    : 'destructive'
+                              }
+                            >
+                              {customer.accessStatus}
+                            </Badge>
+                          </td>
+                          <td class="px-4 py-3 text-sm text-muted-foreground">
+                            {new Date(customer.createdAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            }
+          </CardContent>
+        </Card>
       </main>
     </div>
   </Layout>
