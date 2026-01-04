@@ -1,0 +1,51 @@
+---
+interface Props {
+  currentPath?: string;
+}
+
+const { currentPath = Astro.url.pathname } = Astro.props;
+
+const navItems = [
+  { href: '/admin', label: 'Dashboard' },
+  { href: '/admin/customers', label: 'Customers' },
+  { href: '/admin/repositories/new', label: 'Add Repository' },
+];
+
+const isActive = (href: string) => {
+  if (href === '/admin') {
+    return currentPath === '/admin';
+  }
+  return currentPath.startsWith(href);
+};
+---
+
+<header class="bg-white shadow">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center py-4">
+      <div class="flex items-center space-x-8">
+        <a href="/admin" class="text-xl font-bold text-gray-900"> RepoPass Admin </a>
+        <nav class="hidden md:flex space-x-4">
+          {
+            navItems.map((item) => (
+              <a
+                href={item.href}
+                class={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive(item.href)
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                {item.label}
+              </a>
+            ))
+          }
+        </nav>
+      </div>
+      <form action="/api/auth/logout" method="POST">
+        <button type="submit" class="text-gray-600 hover:text-gray-900 text-sm font-medium">
+          Logout
+        </button>
+      </form>
+    </div>
+  </div>
+</header>

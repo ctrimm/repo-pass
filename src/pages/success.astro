@@ -1,0 +1,66 @@
+---
+import Layout from '../layouts/main.astro';
+
+const sessionId = Astro.url.searchParams.get('session_id');
+---
+
+<Layout title="Purchase Successful - RepoPass">
+  <div
+    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4"
+  >
+    <div class="max-w-2xl w-full">
+      <div class="bg-white rounded-lg shadow-xl p-8 text-center">
+        <div
+          class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
+        >
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"
+            ></path>
+          </svg>
+        </div>
+
+        <h1 class="text-3xl font-bold text-gray-900 mb-3">Purchase Successful! 🎉</h1>
+        <p class="text-lg text-gray-600 mb-8">
+          Thank you for your purchase. We're setting up your access now.
+        </p>
+
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8 text-left">
+          <h2 class="font-semibold text-gray-900 mb-2">What happens next?</h2>
+          <ol class="space-y-2 text-gray-700">
+            <li class="flex items-start">
+              <span class="font-medium mr-2">1.</span>
+              <span>You'll receive a confirmation email shortly</span>
+            </li>
+            <li class="flex items-start">
+              <span class="font-medium mr-2">2.</span>
+              <span
+                >We're adding you as a collaborator to the repository (this takes less than 5
+                minutes)</span
+              >
+            </li>
+            <li class="flex items-start">
+              <span class="font-medium mr-2">3.</span>
+              <span>You'll get another email with access instructions and the repository link</span>
+            </li>
+            <li class="flex items-start">
+              <span class="font-medium mr-2">4.</span>
+              <span>Check your GitHub notifications for the collaboration invite</span>
+            </li>
+          </ol>
+        </div>
+
+        <div class="space-y-3">
+          <a
+            href="https://github.com"
+            class="inline-block bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+          >
+            Go to GitHub
+          </a>
+          <p class="text-sm text-gray-500">Check your email for detailed instructions</p>
+        </div>
+
+        {sessionId && <p class="mt-6 text-xs text-gray-400">Session ID: {sessionId}</p>}
+      </div>
+    </div>
+  </div>
+</Layout>

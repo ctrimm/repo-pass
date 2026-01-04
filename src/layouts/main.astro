@@ -12,35 +12,27 @@ export interface Props {
   nofollow?: boolean;
 }
 
-const {
-  title,
-  description,
-  image,
-  canonical,
-  type,
-  noindex,
-  nofollow,
-} = Astro.props;
+const { title, description, image, canonical, type, noindex, nofollow } = Astro.props;
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-		<SEO
-			title={title}
-			description={description}
-			image={image}
-			canonical={canonical}
-			type={type}
-			noindex={noindex}
-			nofollow={nofollow}
-		/>
-	</head>
-	<body>
-		<slot />
-	</body>
+    <SEO
+      title={title}
+      description={description}
+      image={image}
+      canonical={canonical}
+      type={type}
+      noindex={noindex}
+      nofollow={nofollow}
+    />
+  </head>
+  <body>
+    <slot />
+  </body>
 </html>

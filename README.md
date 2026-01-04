@@ -1,195 +1,239 @@
-# Astro + React + shadcn/ui + Tailwind + TypeScript Template
+# RepoPass
 
-A modern, feature-rich starter template combining the power of Astro with React components, shadcn/ui component library, Tailwind CSS styling, and TypeScript type safety.
+**Monetize your GitHub repositories with automated access management and payments.**
 
-> **Important**: This is a template repository. Do not push directly to this repository. Instead, use the "Use this template" button on GitHub to create a new repository based on this template. The template button can be found at the top of the repository page:
-
-![Template Button Location](template-dropdown.png)
-
-For more information about template repositories, see the [GitHub documentation](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-template-repository).
+RepoPass is a SaaS platform that enables you to sell access to private GitHub repositories. Set up payment flows via Stripe (one-time or subscription) and automatically grant purchasers access to your repos. No license keys, no DRM, no manual management.
 
 ## Features
 
-- ⚡️ **[Astro](https://astro.build/)** - A modern static site builder with exceptional performance
-- ⚛️ **[React](https://reactjs.org/)** - UI component library integration
-- 🎨 **[shadcn/ui](https://ui.shadcn.com/)** - Beautiful and accessible component library
-- 🎯 **[TypeScript](https://www.typescriptlang.org/)** - Type safety and enhanced developer experience
-- 🎨 **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
-- 📦 **Modern Stack** - Latest versions of all major dependencies
-- 🚀 **Performance Focused** - Optimized for speed and efficiency
-- 📱 **Responsive Design** - Mobile-first approach
-- ✨ **Interactive Examples** - Includes demo components (like confetti effects!)
-- 🔍 **SEO Optimized** - Built-in SEO component with meta tags, Open Graph, and Twitter Cards
-- 🗺️ **Sitemap Generation** - Automatic sitemap.xml generation for better search engine indexing
-- 🤖 **robots.txt** - Pre-configured robots.txt for search engine crawlers
-- ❌ **Custom Error Pages** - Beautiful 404 page with navigation
-- 🌍 **Deployment Ready** - Comprehensive guides for Vercel, Netlify, Cloudflare, and more
+- 💳 **Stripe Integration** - One-time purchases and subscriptions
+- 🔐 **Automated Access** - Automatically adds customers as GitHub collaborators
+- 📧 **Email Notifications** - Purchase confirmations, access grants, renewals via Resend
+- 👥 **Customer Management** - Full admin panel to view and manage customers
+- 📊 **Pricing History** - Track price changes with automatic grandfathering
+- 🔄 **Subscription Management** - Auto-revoke access on cancellation
+- 📈 **Analytics Ready** - PostHog integration for tracking business metrics
+- 🎨 **Beautiful UI** - Modern admin panel and public product pages
 
 ## Quick Start
 
-1. Click the "Use this template" button above to create a new repository based on this template.
+### Prerequisites
 
-2. Clone your new repository:
-```bash
-git clone https://github.com/automatearmy/astro-react-shad-tailwind-template-repo.git
-cd your-new-repo-name
-```
+- Node.js 18+
+- PostgreSQL 15+
+- Redis 7+
+- GitHub account
+- Stripe account
+- Resend account
 
-3. Install dependencies:
+### Installation
+
+1. **Clone and install**:
 ```bash
+git clone https://github.com/ctrimm/repo-pass.git
+cd repo-pass
 npm install
 ```
 
-4. Start the development server:
-```bash
-npm run dev
-```
-
-Visit `http://localhost:4321` to see your site!
-
-## Configuration
-
-### Environment Variables
-
-1. Copy `.env.example` to `.env`:
+2. **Set up environment**:
 ```bash
 cp .env.example .env
 ```
 
-2. Update the values in `.env` with your configuration:
-- `SITE_URL` - Your production URL (required for SEO)
-- `SITE_NAME` - Your site name
-- `SITE_DESCRIPTION` - Your site description
-- Add any additional API keys or configuration as needed
+Fill in your `.env` with:
+- GitHub OAuth credentials
+- GitHub Personal Access Token
+- Stripe API keys
+- Resend API key
+- PostHog API key (optional)
 
-### Site Configuration
+See [`TODO.md`](./TODO.md) for detailed setup instructions.
 
-Update `astro.config.js` with your production URL:
-
-```javascript
-export default defineConfig({
-  site: 'https://yourdomain.com', // Update this!
-  // ... rest of config
-});
+3. **Start database**:
+```bash
+docker-compose up -d
 ```
 
-Update `public/robots.txt` with your sitemap URL:
-
-```
-Sitemap: https://yourdomain.com/sitemap-index.xml
-```
-
-## SEO Usage
-
-This template includes a built-in SEO component that you can use on any page:
-
-```astro
----
-import Layout from '../layouts/main.astro';
----
-
-<Layout
-  title="Your Page Title"
-  description="Your page description for search engines"
-  image="/og-image.png"
-  type="website"
->
-  <!-- Your content -->
-</Layout>
+4. **Run migrations**:
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:seed
 ```
 
-The SEO component automatically generates:
-- Meta title and description
-- Open Graph tags for social media
-- Twitter Card tags
-- Canonical URLs
-- robots meta tags
+5. **Start development server**:
+```bash
+npm run dev
+```
 
-## Available Commands
+Visit `http://localhost:4321`
 
-- `npm run dev` - Start development server
-- `npm run build` - Build your production site
-- `npm run preview` - Preview your build locally
-- `npm run astro` - Run Astro commands
+### Testing Payments
 
-## Deployment
+In development, use Stripe test mode:
 
-This template is ready to deploy to various platforms. See [DEPLOYMENT.md](./DEPLOYMENT.md) for comprehensive guides on deploying to:
+1. Start Stripe webhook forwarding:
+```bash
+stripe listen --forward-to localhost:4321/api/webhooks/stripe
+```
 
-- **Vercel** - One-click deployment with automatic preview URLs
-- **Netlify** - Simple Git-based deployment
-- **Cloudflare Pages** - Fast edge deployment
-- **GitHub Pages** - Free hosting with GitHub Actions
-- **AWS Amplify** - Scalable AWS infrastructure
-- **Traditional Hosting** - Apache/Nginx configuration
-- **Docker** - Containerized deployment
+2. Use test card: `4242 4242 4242 4242`
 
-Quick deploy to Vercel:
+## How It Works
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/yourrepo)
+### For You (Repository Owner)
+
+1. **Add Repository** - Log in to admin panel and add your private repo
+2. **Set Pricing** - Choose one-time ($X) or subscription ($X/month or /year)
+3. **Share Link** - Get product page URL to share on your website
+4. **Done!** - Purchases are processed automatically
+
+### For Your Customers
+
+1. **Visit Product Page** - Click link to your product
+2. **Enter GitHub Username** - Provide their GitHub username
+3. **Pay with Stripe** - Secure checkout
+4. **Get Access** - Automatically added as collaborator within 5 minutes
 
 ## Project Structure
 
 ```
-/
-├── public/
-│   ├── favicon.svg
-│   └── robots.txt
+repo-pass/
 ├── src/
-│   ├── components/
-│   │   ├── ui/
-│   │   │   └── button.tsx
-│   │   └── SEO.astro
-│   ├── layouts/
-│   │   └── main.astro
-│   ├── lib/
-│   │   └── utils.ts
+│   ├── db/              # Database schema and migrations (Drizzle ORM)
+│   ├── lib/             # Core services (auth, email, github, stripe, analytics)
 │   ├── pages/
-│   │   ├── index.astro
-│   │   ├── 404.astro
-│   │   └── markdown-page.md
-│   └── styles/
-│       └── global.css
-├── .env.example
-├── astro.config.js
-├── components.json
-├── tailwind.config.mjs
-├── tsconfig.json
-├── DEPLOYMENT.md
-└── README.md
+│   │   ├── admin/       # Admin panel pages
+│   │   ├── api/         # API routes (admin, public, webhooks)
+│   │   └── products/    # Public product pages
+│   └── components/      # UI components
+├── docs/                # Technical documentation
+├── docker-compose.yml   # Local PostgreSQL, Redis, MailDev
+└── TODO.md             # Setup checklist
 ```
 
-## Dependencies
+## Documentation
 
-- Astro v5.16+ with MDX and React integrations
-- React v19+ and React DOM
-- Tailwind CSS v4+ with Vite plugin
-- TypeScript with strict mode
-- shadcn/ui components (Radix UI primitives)
-- Sitemap generation (@astrojs/sitemap)
-- Additional utilities like `clsx`, `tailwind-merge`, `class-variance-authority`, and `canvas-confetti`
+- **[TODO.md](./TODO.md)** - Complete setup checklist
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Technical architecture
+- **[docs/DATABASE.md](./docs/DATABASE.md)** - Database schema
+- **[docs/API.md](./docs/API.md)** - API documentation
+- **[docs/SETUP.md](./docs/SETUP.md)** - Detailed setup guide
+- **[docs/WORKFLOWS.md](./docs/WORKFLOWS.md)** - User and system workflows
+- **[docs/SECURITY.md](./docs/SECURITY.md)** - Security and compliance
 
-## Adding More shadcn/ui Components
+## Tech Stack
 
-This template is configured with shadcn/ui. To add more components:
+- **Framework**: Astro 5 (SSR) + React 19
+- **Database**: PostgreSQL + Drizzle ORM
+- **Cache**: Redis
+- **Payments**: Stripe
+- **Email**: Resend
+- **Analytics**: PostHog
+- **Hosting**: AWS (SST) / Vercel / Netlify
+- **UI**: Tailwind CSS + shadcn/ui
+
+## Available Commands
 
 ```bash
-npx shadcn@latest add [component-name]
+# Development
+npm run dev              # Start dev server
+npm run build            # Build for production
+npm run preview          # Preview production build
+
+# Database
+npm run db:generate      # Generate migrations
+npm run db:migrate       # Run migrations
+npm run db:seed          # Seed database
+npm run db:studio        # Open Drizzle Studio
+npm run db:reset         # Reset database (dev only)
+
+# Code Quality
+npm run type-check       # Check TypeScript types
+npm run lint             # Lint code
+npm run format           # Format code
+
+# Stripe
+npm run stripe:listen    # Forward webhooks to localhost
 ```
 
-For example:
-```bash
-npx shadcn@latest add card
-npx shadcn@latest add dialog
-npx shadcn@latest add form
-```
+## Admin Panel Features
 
-Available components: https://ui.shadcn.com/docs/components
+### Dashboard (`/admin`)
+- Revenue overview and statistics
+- Repository management (add, edit, activate/deactivate)
+- Recent customer purchases
+- Quick actions and analytics
+
+### Customers (`/admin/customers`)
+- Filter by repository, status, or search
+- View complete purchase history
+- Access logs and activity timeline
+- Revoke access manually
+- Stripe payment details
+
+### Repositories (`/admin/repositories`)
+- Add new repositories
+- Edit details and pricing
+- Pricing history with grandfathering
+- Repository statistics
+- Quick links to GitHub and product pages
+
+## Use Cases
+
+### Personal Premium Themes/Templates
+List your premium Astro/React/Tailwind themes on your personal site and link to RepoPass for checkout.
+
+### SaaS Starter Kits
+Sell access to your production-ready SaaS boilerplates.
+
+### Educational Code
+Monetize course materials, example projects, or learning resources.
+
+### Component Libraries
+Sell premium component libraries or design systems.
+
+## Security
+
+- ✅ GitHub OAuth for admin authentication
+- ✅ JWT session management with HTTP-only cookies
+- ✅ Webhook signature verification
+- ✅ Input validation with Zod schemas
+- ✅ SQL injection prevention via ORM
+- ✅ PCI compliance via Stripe
+- ✅ Secrets in environment variables
+- ✅ Read-only GitHub collaborator access
+
+See [docs/SECURITY.md](./docs/SECURITY.md) for details.
+
+## Deployment
+
+RepoPass can be deployed to:
+- AWS (via SST - recommended)
+- Vercel
+- Netlify
+- Any Node.js hosting
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for platform-specific guides.
+
+## Pricing Features
+
+- **Grandfathering**: Change prices anytime - existing customers keep their price
+- **One-time**: Single payment, lifetime access
+- **Subscriptions**: Monthly or yearly billing
+- **Auto-revocation**: Access removed when subscription cancels
+- **History Tracking**: Full audit trail of all pricing changes
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/ctrimm/repo-pass/issues)
+- **Documentation**: [`/docs`](./docs/)
+- **Setup Help**: See [`TODO.md`](./TODO.md)
 
 ## License
 
-MIT License - feel free to use this template for your own projects!
+MIT License - See [LICENSE](./LICENSE)
 
-## Contributing
+---
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+**Built with ❤️ by Cory Trimm**
