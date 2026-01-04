@@ -8,6 +8,7 @@ import { sendEmail, emailTemplates } from '../../../lib/email';
 
 // Helper to add collaborator with retry logic
 async function addCollaboratorWithRetry(
+  userId: string,
   owner: string,
   repo: string,
   username: string,
@@ -15,7 +16,7 @@ async function addCollaboratorWithRetry(
 ): Promise<{ success: boolean; error?: string }> {
   for (let i = 0; i < maxRetries; i++) {
     try {
-      await addCollaborator({ owner, repo, username });
+      await addCollaborator({ userId, owner, repo, username });
       return { success: true };
     } catch (error: any) {
       console.error(`Attempt ${i + 1} failed:`, error);
@@ -88,7 +89,7 @@ export const POST: APIRoute = async ({ request }) => {
           .where(eq(purchases.id, purchase.id));
 
         // Check if GitHub username exists
-        const userExists = await checkUserExists(githubUsername);
+        const userExists = await checkUserExists(repository.ownerId, githubUsername);
 
         if (!userExists) {
           // Log error
@@ -120,6 +121,7 @@ export const POST: APIRoute = async ({ request }) => {
 
         // Add as collaborator
         const result = await addCollaboratorWithRetry(
+          repository.ownerId,
           repository.githubOwner,
           repository.githubRepoName,
           githubUsername
@@ -237,6 +239,7 @@ export const POST: APIRoute = async ({ request }) => {
         // Remove collaborator
         try {
           await removeCollaborator({
+            userId: repository.ownerId,
             owner: repository.githubOwner,
             repo: repository.githubRepoName,
             username: purchase.githubUsername,

@@ -30,7 +30,10 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
 
     // SECURITY: Get repository and verify ownership
     const repository = await db.query.repositories.findFirst({
-      where: and(eq(repositories.id, purchase.repositoryId), eq(repositories.ownerId, session.userId)),
+      where: and(
+        eq(repositories.id, purchase.repositoryId),
+        eq(repositories.ownerId, session.userId)
+      ),
     });
 
     if (!repository) {
@@ -42,6 +45,7 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
     // Remove GitHub collaborator
     try {
       await removeCollaborator({
+        userId: repository.ownerId,
         owner: repository.githubOwner,
         repo: repository.githubRepoName,
         username: purchase.githubUsername,

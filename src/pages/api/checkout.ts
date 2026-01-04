@@ -53,6 +53,13 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
+    // Free repositories don't require checkout
+    if (repository.pricingType === 'free') {
+      return new Response(JSON.stringify({ error: 'Free repositories do not require checkout' }), {
+        status: 400,
+      });
+    }
+
     // Create pending purchase record
     const [purchase] = await db
       .insert(purchases)
@@ -60,7 +67,7 @@ export const POST: APIRoute = async ({ request }) => {
         repositoryId: repository.id,
         email,
         githubUsername,
-        purchaseType: repository.pricingType,
+        purchaseType: repository.pricingType as 'one-time' | 'subscription',
         amountCents: repository.priceCents,
         status: 'pending',
         accessStatus: 'pending',
@@ -78,7 +85,7 @@ export const POST: APIRoute = async ({ request }) => {
       repositoryId: repository.id,
       repositoryName: repository.displayName,
       priceCents: repository.priceCents,
-      pricingType: repository.pricingType,
+      pricingType: repository.pricingType as 'one-time' | 'subscription',
       subscriptionCadence,
       customerEmail: email,
       githubUsername,

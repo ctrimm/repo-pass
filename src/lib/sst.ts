@@ -14,7 +14,9 @@ export function isSST(): boolean {
   try {
     // Check if we're actually in an SST deployment with accessible resources
     // @ts-ignore - SST Resource types are generated at runtime
-    return typeof Resource !== 'undefined' && Resource !== null && Resource.DatabaseUrl !== undefined;
+    return (
+      typeof Resource !== 'undefined' && Resource !== null && Resource.DatabaseUrl !== undefined
+    );
   } catch {
     return false;
   }

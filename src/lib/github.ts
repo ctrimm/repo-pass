@@ -10,8 +10,8 @@ async function getUserGitHubToken(userId: string): Promise<string> {
       where: eq(users.id, userId),
     });
 
-    // Use user's OAuth token if available, otherwise fall back to PAT
-    return user?.githubAccessToken || env.GITHUB_PERSONAL_ACCESS_TOKEN;
+    // Use user's Personal Access Token if available, otherwise fall back to env PAT
+    return user?.githubPersonalAccessToken || env.GITHUB_PERSONAL_ACCESS_TOKEN;
   } catch (error) {
     console.warn('Failed to get user OAuth token, using PAT:', error);
     return env.GITHUB_PERSONAL_ACCESS_TOKEN;
@@ -84,7 +84,12 @@ export async function addCollaborator({ userId, owner, repo, username }: AddColl
 /**
  * Remove a collaborator from a repository
  */
-export async function removeCollaborator({ userId, owner, repo, username }: RemoveCollaboratorOptions) {
+export async function removeCollaborator({
+  userId,
+  owner,
+  repo,
+  username,
+}: RemoveCollaboratorOptions) {
   try {
     const octokit = await createOctokit(userId);
     await octokit.repos.removeCollaborator({

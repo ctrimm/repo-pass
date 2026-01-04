@@ -33,9 +33,7 @@ export class PaymentProviderFactory {
   /**
    * Create and initialize a payment provider from user credentials
    */
-  static async createAndInitialize(
-    credentials: UserPaymentCredentials
-  ): Promise<IPaymentProvider> {
+  static async createAndInitialize(credentials: UserPaymentCredentials): Promise<IPaymentProvider> {
     const provider = this.create(credentials.provider);
     await provider.initialize(credentials);
     return provider;

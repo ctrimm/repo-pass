@@ -16,7 +16,6 @@ async function seed() {
         email: adminEmail,
         githubUsername: 'ctrimm',
         role: 'user',
-        
       })
       .onConflictDoNothing()
       .returning();
