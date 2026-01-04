@@ -15,8 +15,7 @@ async function seed() {
       .values({
         email: adminEmail,
         githubUsername: 'ctrimm',
-        role: 'admin',
-        isAdmin: true,
+        role: 'user',
       })
       .onConflictDoNothing()
       .returning();

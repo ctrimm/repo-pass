@@ -19,6 +19,7 @@ if (!repository || !repository.active) {
   return Astro.redirect('/404');
 }
 ---
+
 <PostHogLayout>
   <Layout title={`${repository.displayName} - RepoPass`}>
     <div class="min-h-screen bg-gray-50 py-12 px-4">
@@ -34,10 +35,10 @@ if (!repository || !repository.active) {
               />
             )
           }
-  
+
           <div class="p-8">
             <h1 class="text-4xl font-bold text-gray-900 mb-4">{repository.displayName}</h1>
-  
+
             <div class="flex items-center gap-4 mb-6 text-gray-600">
               <span class="flex items-center gap-1">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -58,13 +59,13 @@ if (!repository || !repository.active) {
                 )
               }
             </div>
-  
+
             {
               repository.description && (
                 <p class="text-lg text-gray-700 mb-8">{repository.description}</p>
               )
             }
-  
+
             <!-- Pricing -->
             <div class="bg-blue-50 rounded-lg p-6 mb-8">
               <div class="flex items-baseline gap-2 mb-2">
@@ -85,7 +86,7 @@ if (!repository || !repository.active) {
                 }
               </p>
             </div>
-  
+
             <!-- Checkout Form -->
             <form id="checkout-form" class="space-y-4">
               <div>
@@ -104,7 +105,7 @@ if (!repository || !repository.active) {
                   This username will be added as a collaborator to the repository
                 </p>
               </div>
-  
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1"> Email Address </label>
                 <input
@@ -118,7 +119,7 @@ if (!repository || !repository.active) {
                   For order confirmation and access instructions
                 </p>
               </div>
-  
+
               <button
                 type="submit"
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors text-lg"
@@ -126,12 +127,12 @@ if (!repository || !repository.active) {
               >
                 Purchase Access
               </button>
-  
+
               <p class="text-xs text-center text-gray-500">
                 By purchasing, you agree to our terms. Access may be revoked for violations.
               </p>
             </form>
-  
+
             <!-- What You Get -->
             <div class="mt-12 border-t pt-8">
               <h2 class="text-2xl font-bold text-gray-900 mb-4">What You Get</h2>

@@ -1,13 +1,13 @@
 ---
 import PostHogLayout from '@/layouts/PostHogLayout.astro';
 import Layout from '../../../layouts/main.astro';
-import AdminNav from '../../../components/AdminNav.astro';
+import DashboardNav from '../../../components/DashboardNav.astro';
 import { requireAdmin } from '../../../lib/auth';
 import { db, purchases, repositories, accessLogs } from '../../../db';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 // Require admin access
-await requireAdmin(Astro.cookies).catch(() => {
+const session = await requireAdmin(Astro.cookies).catch(() => {
   return Astro.redirect('/');
 });
 
@@ -26,10 +26,15 @@ if (!purchase) {
   return Astro.redirect('/admin/customers');
 }
 
-// Get repository
+// SECURITY: Get repository and verify ownership
 const repository = await db.query.repositories.findFirst({
-  where: eq(repositories.id, purchase.repositoryId),
+  where: and(eq(repositories.id, purchase.repositoryId), eq(repositories.ownerId, session.userId)),
 });
+
+// If repository not found or not owned by user, redirect
+if (!repository) {
+  return Astro.redirect('/dashboard/customers');
+}
 
 // Get access logs
 const logs = await db
@@ -42,8 +47,8 @@ const logs = await db
 <PostHogLayout>
   <Layout title={`Customer Details - ${purchase.githubUsername}`}>
     <div class="min-h-screen bg-gray-50">
-      <AdminNav />
-  
+      <DashboardNav />
+
       <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <!-- Customer Info -->
@@ -112,7 +117,7 @@ const logs = await db
                 </div>
               </dl>
             </div>
-  
+
             <!-- Repository Info -->
             {
               repository && (
@@ -139,7 +144,7 @@ const logs = await db
                 </div>
               )
             }
-  
+
             <!-- Stripe Info -->
             <div class="bg-white rounded-lg shadow p-6">
               <h2 class="text-lg font-semibold text-gray-900 mb-4">Payment Details</h2>
@@ -176,7 +181,7 @@ const logs = await db
                 }
               </dl>
             </div>
-  
+
             <!-- Access Logs -->
             <div class="bg-white rounded-lg shadow">
               <div class="px-6 py-4 border-b border-gray-200">
@@ -233,7 +238,7 @@ const logs = await db
               </div>
             </div>
           </div>
-  
+
           <!-- Sidebar Actions -->
           <div class="space-y-6">
             <!-- Timestamps -->
@@ -268,7 +273,7 @@ const logs = await db
                 }
               </dl>
             </div>
-  
+
             {
               purchase.revocationReason && (
                 <div class="bg-red-50 rounded-lg border border-red-200 p-6">
@@ -277,11 +282,11 @@ const logs = await db
                 </div>
               )
             }
-  
+
             <!-- Actions -->
             <div class="bg-white rounded-lg shadow p-6 space-y-3">
               <h3 class="text-sm font-medium text-gray-500 mb-4">Actions</h3>
-  
+
               {
                 purchase.accessStatus === 'active' && (
                   <button
@@ -292,7 +297,7 @@ const logs = await db
                   </button>
                 )
               }
-  
+
               {
                 repository && (
                   <a
@@ -309,7 +314,7 @@ const logs = await db
         </div>
       </main>
     </div>
-  </Layout>  
+  </Layout>
 </PostHogLayout>
 
 <script>

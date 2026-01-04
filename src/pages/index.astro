@@ -5,9 +5,9 @@ import { getSession } from '../lib/auth';
 
 const session = await getSession(Astro.cookies);
 
-// If already logged in, redirect to admin
+// If already logged in, redirect to dashboard
 if (session) {
-  return Astro.redirect('/admin');
+  return Astro.redirect('/dashboard');
 }
 ---
 

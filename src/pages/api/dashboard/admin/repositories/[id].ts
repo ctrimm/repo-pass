@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, repositories, pricingHistory, purchases } from '../../../../db';
-import { eq, desc, isNull } from 'drizzle-orm';
-import { requireAdmin } from '../../../../lib/auth';
+import { db, repositories, pricingHistory, purchases } from '../../../../../db';
+import { eq, desc, isNull, and } from 'drizzle-orm';
+import { requireAdmin } from '../../../../../lib/auth';
 
 const updateRepositorySchema = z.object({
   displayName: z.string().min(1).optional(),
@@ -14,10 +14,11 @@ const updateRepositorySchema = z.object({
 
 export const GET: APIRoute = async ({ params, cookies }) => {
   try {
-    await requireAdmin(cookies);
+    const session = await requireAdmin(cookies);
 
+    // SECURITY: Verify ownership before returning data
     const repository = await db.query.repositories.findFirst({
-      where: eq(repositories.id, params.id!),
+      where: and(eq(repositories.id, params.id!), eq(repositories.ownerId, session.userId)),
       with: {
         products: true,
       },
@@ -68,9 +69,9 @@ export const PATCH: APIRoute = async ({ params, request, cookies }) => {
     const body = await request.json();
     const data = updateRepositorySchema.parse(body);
 
-    // Get current repository
+    // SECURITY: Get current repository and verify ownership
     const current = await db.query.repositories.findFirst({
-      where: eq(repositories.id, params.id!),
+      where: and(eq(repositories.id, params.id!), eq(repositories.ownerId, session.userId)),
     });
 
     if (!current) {
@@ -138,16 +139,16 @@ export const PATCH: APIRoute = async ({ params, request, cookies }) => {
 
 export const DELETE: APIRoute = async ({ params, cookies }) => {
   try {
-    await requireAdmin(cookies);
+    const session = await requireAdmin(cookies);
 
-    // Soft delete - just set active to false
+    // SECURITY: Soft delete with ownership verification
     const [updated] = await db
       .update(repositories)
       .set({
         active: false,
         updatedAt: new Date(),
       })
-      .where(eq(repositories.id, params.id!))
+      .where(and(eq(repositories.id, params.id!), eq(repositories.ownerId, session.userId)))
       .returning();
 
     if (!updated) {

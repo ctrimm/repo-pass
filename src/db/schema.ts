@@ -13,8 +13,14 @@ import {
 import { relations, sql } from 'drizzle-orm';
 
 // Enums
-export const roleEnum = pgEnum('role', ['admin', 'creator', 'none']);
-export const pricingTypeEnum = pgEnum('pricing_type', ['one-time', 'subscription']);
+export const roleEnum = pgEnum('role', ['user']);
+export const paymentProviderEnum = pgEnum('payment_provider', [
+  'stripe',
+  'lemon_squeezy',
+  'gumroad',
+  'paddle',
+]);
+export const pricingTypeEnum = pgEnum('pricing_type', ['one-time', 'subscription', 'free']);
 export const subscriptionCadenceEnum = pgEnum('subscription_cadence', [
   'monthly',
   'yearly',
@@ -46,10 +52,22 @@ export const users = pgTable('users', {
   githubOauthId: varchar('github_oauth_id', { length: 255 }).unique(),
   githubUsername: varchar('github_username', { length: 255 }),
   githubAvatarUrl: text('github_avatar_url'),
-  githubAccessToken: text('github_access_token'), // OAuth token with repo access
-  stripeAccountId: varchar('stripe_account_id', { length: 255 }),
-  role: roleEnum('role').default('admin').notNull(),
-  isAdmin: boolean('is_admin').default(false).notNull(),
+  githubPersonalAccessToken: text('github_personal_access_token'), // For adding collaborators
+  role: roleEnum('role').default('user').notNull(),
+
+  // Payment provider settings (encrypted in application layer)
+  paymentProvider: paymentProviderEnum('payment_provider'),
+  stripeSecretKey: text('stripe_secret_key'),
+  stripePublishableKey: text('stripe_publishable_key'),
+  lemonSqueezyApiKey: text('lemon_squeezy_api_key'),
+  lemonSqueezyStoreId: varchar('lemon_squeezy_store_id', { length: 255 }),
+  gumroadAccessToken: text('gumroad_access_token'),
+  paddleVendorId: varchar('paddle_vendor_id', { length: 255 }),
+  paddleApiKey: text('paddle_api_key'),
+
+  // GDPR & Privacy
+  emailNotifications: boolean('email_notifications').default(true).notNull(), // User consent for emails
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -69,10 +87,16 @@ export const repositories = pgTable(
     description: text('description'),
     coverImageUrl: text('cover_image_url'),
     pricingType: pricingTypeEnum('pricing_type').notNull(),
-    priceCents: integer('price_cents').notNull(),
+    priceCents: integer('price_cents').default(0).notNull(),
     subscriptionCadence: subscriptionCadenceEnum('subscription_cadence'),
     customCadenceDays: integer('custom_cadence_days'),
     active: boolean('active').default(true).notNull(),
+
+    // Payment provider info (which provider & external IDs)
+    paymentProvider: paymentProviderEnum('payment_provider'), // null for free repos
+    externalProductId: varchar('external_product_id', { length: 255 }), // Product ID in payment provider
+    externalPriceId: varchar('external_price_id', { length: 255 }), // Price ID in payment provider
+
     githubStars: integer('github_stars').default(0),
     githubLastUpdated: timestamp('github_last_updated', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

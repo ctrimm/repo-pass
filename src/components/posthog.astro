@@ -1,33 +1,34 @@
 ---
 // src/components/posthog.astro
 ---
+
 <script is:inline type="text/javascript" id="posthog-js">
-  !(function(t, e) {
+  !(function (t, e) {
     var o, n, p, r;
     e.__SV ||
       ((window.posthog = e),
       (e._i = []),
-      (e.init = function(i, s, a) {
+      (e.init = function (i, s, a) {
         function g(t, e) {
           var o = e.split('.');
-          2 == o.length && ((t = t[o[0]]), (e = o[1])),
-            (t[e] = function() {
+          (2 == o.length && ((t = t[o[0]]), (e = o[1])),
+            (t[e] = function () {
               t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
-            });
+            }));
         }
-        ((p = t.createElement('script')).type = 'text/javascript'),
+        (((p = t.createElement('script')).type = 'text/javascript'),
           (p.crossOrigin = 'anonymous'),
           (p.async = true),
           (p.src = s.api_host + '/static/array.js'),
-          (r = t.getElementsByTagName('script')[0]).parentNode.insertBefore(p, r);
+          (r = t.getElementsByTagName('script')[0]).parentNode.insertBefore(p, r));
         var u = e;
         void 0 !== a ? (u = e[a] = []) : (a = 'posthog');
         u.people = u.people || [];
-        u.toString = function(t) {
+        u.toString = function (t) {
           var e = 'posthog';
-          return 'posthog' !== a && (e += '.' + a), t || (e += ' (stub)'), e;
+          return ('posthog' !== a && (e += '.' + a), t || (e += ' (stub)'), e);
         };
-        u.people.toString = function() {
+        u.people.toString = function () {
           return u.toString(1) + '.people (stub)';
         };
         o =
@@ -39,5 +40,8 @@
       }),
       (e.__SV = 1));
   })(document, window.posthog || []);
-  posthog.init('phc_PHtpUa3Xgpi4dQgrIUfy5SjT97NX7XwJiTNcrMMGO4I', { api_host: 'https://us.i.posthog.com', defaults: '2025-05-24' });
+  posthog.init('phc_PHtpUa3Xgpi4dQgrIUfy5SjT97NX7XwJiTNcrMMGO4I', {
+    api_host: 'https://us.i.posthog.com',
+    defaults: '2025-05-24',
+  });
 </script>

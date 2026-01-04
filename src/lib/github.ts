@@ -2,6 +2,7 @@ import { Octokit } from '@octokit/rest';
 import { env } from './env';
 import { db, users } from '../db';
 import { eq } from 'drizzle-orm';
+import { decrypt } from './crypto';
 
 // Get user's OAuth token by userId (falls back to PAT if not available)
 async function getUserGitHubToken(userId: string): Promise<string> {
@@ -10,8 +11,16 @@ async function getUserGitHubToken(userId: string): Promise<string> {
       where: eq(users.id, userId),
     });
 
-    // Use user's OAuth token if available, otherwise fall back to PAT
-    return user?.githubAccessToken || env.GITHUB_PERSONAL_ACCESS_TOKEN;
+    // Decrypt user's Personal Access Token if available, otherwise fall back to env PAT
+    if (user?.githubPersonalAccessToken) {
+      try {
+        return decrypt(user.githubPersonalAccessToken) || env.GITHUB_PERSONAL_ACCESS_TOKEN;
+      } catch (error) {
+        console.warn('Failed to decrypt GitHub PAT, using env PAT:', error);
+        return env.GITHUB_PERSONAL_ACCESS_TOKEN;
+      }
+    }
+    return env.GITHUB_PERSONAL_ACCESS_TOKEN;
   } catch (error) {
     console.warn('Failed to get user OAuth token, using PAT:', error);
     return env.GITHUB_PERSONAL_ACCESS_TOKEN;
@@ -84,7 +93,12 @@ export async function addCollaborator({ userId, owner, repo, username }: AddColl
 /**
  * Remove a collaborator from a repository
  */
-export async function removeCollaborator({ userId, owner, repo, username }: RemoveCollaboratorOptions) {
+export async function removeCollaborator({
+  userId,
+  owner,
+  repo,
+  username,
+}: RemoveCollaboratorOptions) {
   try {
     const octokit = await createOctokit(userId);
     await octokit.repos.removeCollaborator({

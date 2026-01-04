@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, repositories, pricingHistory } from '../../../../db';
+import { db, repositories, pricingHistory } from '../../../../../db';
 import { eq, desc } from 'drizzle-orm';
-import { requireAdmin } from '../../../../lib/auth';
+import { requireAdmin } from '../../../../../lib/auth';
 
 const createRepositorySchema = z.object({
   githubOwner: z.string().min(1),
@@ -17,11 +17,13 @@ const createRepositorySchema = z.object({
 
 export const GET: APIRoute = async ({ cookies }) => {
   try {
-    await requireAdmin(cookies);
+    const session = await requireAdmin(cookies);
 
+    // SECURITY: Only return repositories owned by current user
     const allRepositories = await db
       .select()
       .from(repositories)
+      .where(eq(repositories.ownerId, session.userId))
       .orderBy(desc(repositories.createdAt));
 
     return new Response(JSON.stringify({ repositories: allRepositories }), {

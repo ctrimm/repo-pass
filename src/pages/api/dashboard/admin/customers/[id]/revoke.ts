@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { db, purchases, accessLogs, repositories } from '../../../../../db';
-import { eq } from 'drizzle-orm';
-import { requireAdmin } from '../../../../../lib/auth';
-import { removeCollaborator } from '../../../../../lib/github';
-import { sendEmail, emailTemplates } from '../../../../../lib/email';
-import { cancelSubscription } from '../../../../../lib/stripe';
+import { db, purchases, accessLogs, repositories } from '../../../../../../db';
+import { eq, and } from 'drizzle-orm';
+import { requireAdmin } from '../../../../../../lib/auth';
+import { removeCollaborator } from '../../../../../../lib/github';
+import { sendEmail, emailTemplates } from '../../../../../../lib/email';
+import { cancelSubscription } from '../../../../../../lib/stripe';
 
 const revokeSchema = z.object({
   reason: z.string().optional(),
@@ -28,13 +28,16 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
       });
     }
 
-    // Get repository
+    // SECURITY: Get repository and verify ownership
     const repository = await db.query.repositories.findFirst({
-      where: eq(repositories.id, purchase.repositoryId),
+      where: and(
+        eq(repositories.id, purchase.repositoryId),
+        eq(repositories.ownerId, session.userId)
+      ),
     });
 
     if (!repository) {
-      return new Response(JSON.stringify({ error: 'Repository not found' }), {
+      return new Response(JSON.stringify({ error: 'Repository not found or unauthorized' }), {
         status: 404,
       });
     }
@@ -42,6 +45,7 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
     // Remove GitHub collaborator
     try {
       await removeCollaborator({
+        userId: repository.ownerId,
         owner: repository.githubOwner,
         repo: repository.githubRepoName,
         username: purchase.githubUsername,

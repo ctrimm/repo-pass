@@ -17,7 +17,7 @@ await requireAdmin(Astro.cookies).catch(() => {
           <h1 class="text-2xl font-bold text-gray-900">Add Repository</h1>
         </div>
       </header>
-  
+
       <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="bg-white rounded-lg shadow p-6">
           <form id="add-repo-form" class="space-y-6">
@@ -32,9 +32,7 @@ await requireAdmin(Astro.cookies).catch(() => {
               >
                 <option value="">Loading your repositories...</option>
               </select>
-              <p class="mt-2 text-sm text-gray-500">
-                Or manually enter repository details below
-              </p>
+              <p class="mt-2 text-sm text-gray-500">Or manually enter repository details below</p>
             </div>
 
             <div>
@@ -47,7 +45,7 @@ await requireAdmin(Astro.cookies).catch(() => {
                 placeholder="e.g., ctrimm"
               />
             </div>
-  
+
             <div>
               <label class="block text-sm font-medium text-gray-700">Repository Name</label>
               <input
@@ -58,7 +56,7 @@ await requireAdmin(Astro.cookies).catch(() => {
                 placeholder="e.g., premium-astro-theme"
               />
             </div>
-  
+
             <div>
               <label class="block text-sm font-medium text-gray-700">Display Name</label>
               <input
@@ -69,7 +67,7 @@ await requireAdmin(Astro.cookies).catch(() => {
                 placeholder="e.g., Premium Astro Theme"
               />
             </div>
-  
+
             <div>
               <label class="block text-sm font-medium text-gray-700">Description</label>
               <textarea
@@ -78,7 +76,7 @@ await requireAdmin(Astro.cookies).catch(() => {
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
                 placeholder="A beautiful, production-ready theme..."></textarea>
             </div>
-  
+
             <div>
               <label class="block text-sm font-medium text-gray-700">Price (USD)</label>
               <input
@@ -91,7 +89,7 @@ await requireAdmin(Astro.cookies).catch(() => {
                 placeholder="49.00"
               />
             </div>
-  
+
             <div>
               <label class="block text-sm font-medium text-gray-700">Pricing Type</label>
               <select
@@ -102,7 +100,7 @@ await requireAdmin(Astro.cookies).catch(() => {
                 <option value="subscription">Subscription</option>
               </select>
             </div>
-  
+
             <div id="subscription-options" class="hidden">
               <label class="block text-sm font-medium text-gray-700">Billing Interval</label>
               <select
@@ -113,7 +111,7 @@ await requireAdmin(Astro.cookies).catch(() => {
                 <option value="yearly">Yearly</option>
               </select>
             </div>
-  
+
             <div class="flex gap-4">
               <button
                 type="submit"
@@ -132,7 +130,7 @@ await requireAdmin(Astro.cookies).catch(() => {
         </div>
       </main>
     </div>
-  </Layout>  
+  </Layout>
 </PostHogLayout>
 
 <script>
