@@ -1,27 +1,50 @@
 import type { APIRoute } from 'astro';
 import { db, purchases, repositories } from '../../../../db';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, inArray, and } from 'drizzle-orm';
 import { requireAdmin } from '../../../../lib/auth';
 import { removeCollaborator } from '../../../../lib/github';
 import { sendEmail, emailTemplates } from '../../../../lib/email';
 
 export const GET: APIRoute = async ({ url, cookies }) => {
   try {
-    await requireAdmin(cookies);
+    const session = await requireAdmin(cookies);
 
     const repositoryId = url.searchParams.get('repositoryId');
     const status = url.searchParams.get('status');
 
-    let query = db.select().from(purchases).orderBy(desc(purchases.createdAt));
+    // SECURITY: First get all repository IDs owned by current user
+    const userRepos = await db
+      .select({ id: repositories.id })
+      .from(repositories)
+      .where(eq(repositories.ownerId, session.userId));
 
-    // Apply filters if provided
-    const allPurchases = await query;
+    const userRepoIds = userRepos.map((r) => r.id);
 
-    const filteredPurchases = allPurchases.filter((p) => {
-      if (repositoryId && p.repositoryId !== repositoryId) return false;
-      if (status && p.accessStatus !== status) return false;
-      return true;
-    });
+    // If user has no repositories, return empty list
+    if (userRepoIds.length === 0) {
+      return new Response(JSON.stringify({ customers: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Build query conditions
+    const conditions = [inArray(purchases.repositoryId, userRepoIds)];
+    if (repositoryId && userRepoIds.includes(repositoryId)) {
+      conditions.push(eq(purchases.repositoryId, repositoryId));
+    }
+    if (status) {
+      conditions.push(eq(purchases.accessStatus, status as any));
+    }
+
+    // SECURITY: Only fetch purchases for user's repositories
+    const allPurchases = await db
+      .select()
+      .from(purchases)
+      .where(and(...conditions))
+      .orderBy(desc(purchases.createdAt));
+
+    const filteredPurchases = allPurchases;
 
     // Get repository details for each purchase
     const customersWithDetails = await Promise.all(
