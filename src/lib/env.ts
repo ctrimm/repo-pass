@@ -1,6 +1,12 @@
 // Environment configuration with validation
+import { config } from 'dotenv';
 import { z } from 'zod';
 import { getEnv as getSSTEnv, isSST } from './sst';
+
+// Load .env file in development/local environments
+if (!isSST()) {
+  config();
+}
 
 const envSchema = z.object({
   // Application
