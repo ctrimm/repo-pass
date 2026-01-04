@@ -13,8 +13,8 @@ import { Resource } from 'sst';
 export function isSST(): boolean {
   try {
     // Check if we're actually in an SST deployment with accessible resources
-    // @ts-ignore - SST Resource types are generated at runtime
     return (
+      // @ts-expect-error - SST Resource types are generated at runtime
       typeof Resource !== 'undefined' && Resource !== null && Resource.DatabaseUrl !== undefined
     );
   } catch {
@@ -28,7 +28,7 @@ export function isSST(): boolean {
 export function getDatabaseUrl(): string {
   if (isSST()) {
     try {
-      // @ts-ignore - SST Resource types are generated at runtime
+      // @ts-expect-error - SST Resource types are generated at runtime
       return Resource.DatabaseUrl.value;
     } catch {
       // Fall through to env var
@@ -43,7 +43,7 @@ export function getDatabaseUrl(): string {
 export function getSecret(sstName: string, envName: string): string {
   if (isSST()) {
     try {
-      // @ts-ignore - SST Resource types are generated at runtime
+      // @ts-expect-error - SST Resource types are generated at runtime
       const value = Resource[sstName]?.value;
       if (value) return value;
     } catch {
