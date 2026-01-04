@@ -159,20 +159,20 @@ npm run stripe:listen    # Forward webhooks to localhost
 
 ## Admin Panel Features
 
-### Dashboard (`/admin`)
+### Dashboard (`/dashboard`)
 - Revenue overview and statistics
 - Repository management (add, edit, activate/deactivate)
 - Recent customer purchases
 - Quick actions and analytics
 
-### Customers (`/admin/customers`)
+### Customers (`/dashboard/customers`)
 - Filter by repository, status, or search
 - View complete purchase history
 - Access logs and activity timeline
 - Revoke access manually
 - Stripe payment details
 
-### Repositories (`/admin/repositories`)
+### Repositories (`/dashboard/repositories`)
 - Add new repositories
 - Edit details and pricing
 - Pricing history with grandfathering

@@ -40,7 +40,7 @@ Authorization: Bearer <jwt_token>
 #### Create Repository
 
 ```http
-POST /api/admin/repositories
+POST /api/dashboard/repositories
 ```
 
 **Request Body**:
@@ -77,7 +77,7 @@ POST /api/admin/repositories
 #### List Repositories
 
 ```http
-GET /api/admin/repositories?page=1&limit=20&active=true
+GET /api/dashboard/repositories?page=1&limit=20&active=true
 ```
 
 **Query Parameters**:
@@ -113,7 +113,7 @@ GET /api/admin/repositories?page=1&limit=20&active=true
 #### Get Repository
 
 ```http
-GET /api/admin/repositories/:id
+GET /api/dashboard/repositories/:id
 ```
 
 **Response** (200 OK):
@@ -144,7 +144,7 @@ GET /api/admin/repositories/:id
 #### Update Repository
 
 ```http
-PATCH /api/admin/repositories/:id
+PATCH /api/dashboard/repositories/:id
 ```
 
 **Request Body** (partial update):
@@ -171,7 +171,7 @@ PATCH /api/admin/repositories/:id
 #### Deactivate Repository
 
 ```http
-DELETE /api/admin/repositories/:id
+DELETE /api/dashboard/repositories/:id
 ```
 
 **Response** (200 OK):
@@ -187,7 +187,7 @@ DELETE /api/admin/repositories/:id
 #### Fetch GitHub Data
 
 ```http
-POST /api/admin/repositories/:id/fetch-github-data
+POST /api/dashboard/repositories/:id/fetch-github-data
 ```
 
 Fetches latest repository metadata from GitHub API.
@@ -206,7 +206,7 @@ Fetches latest repository metadata from GitHub API.
 #### List Customers
 
 ```http
-GET /api/admin/customers?page=1&limit=20&repositoryId=<uuid>&status=active
+GET /api/dashboard/customers?page=1&limit=20&repositoryId=<uuid>&status=active
 ```
 
 **Query Parameters**:
@@ -244,7 +244,7 @@ GET /api/admin/customers?page=1&limit=20&repositoryId=<uuid>&status=active
 #### Get Customer
 
 ```http
-GET /api/admin/customers/:purchaseId
+GET /api/dashboard/customers/:purchaseId
 ```
 
 **Response** (200 OK):
@@ -285,7 +285,7 @@ GET /api/admin/customers/:purchaseId
 #### Revoke Access
 
 ```http
-PATCH /api/admin/customers/:purchaseId/revoke
+PATCH /api/dashboard/customers/:purchaseId/revoke
 ```
 
 **Request Body**:
@@ -313,7 +313,7 @@ PATCH /api/admin/customers/:purchaseId/revoke
 #### Flag Customer
 
 ```http
-POST /api/admin/customers/:purchaseId/flag
+POST /api/dashboard/customers/:purchaseId/flag
 ```
 
 **Request Body**:
@@ -338,7 +338,7 @@ POST /api/admin/customers/:purchaseId/flag
 #### Get Dashboard Metrics
 
 ```http
-GET /api/admin/dashboard?period=30d
+GET /api/dashboard/dashboard?period=30d
 ```
 
 **Query Parameters**:
@@ -384,7 +384,7 @@ GET /api/admin/dashboard?period=30d
 #### Get Access Logs
 
 ```http
-GET /api/admin/access-logs?purchaseId=<uuid>&action=collaborator_added&status=failed
+GET /api/dashboard/access-logs?purchaseId=<uuid>&action=collaborator_added&status=failed
 ```
 
 **Query Parameters**:
@@ -556,7 +556,7 @@ All list endpoints support cursor-based pagination:
 
 **Request**:
 ```http
-GET /api/admin/customers?page=2&limit=20
+GET /api/dashboard/customers?page=2&limit=20
 ```
 
 **Response**:
