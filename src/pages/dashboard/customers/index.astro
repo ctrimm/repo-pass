@@ -8,9 +8,12 @@ import { db, purchases, repositories, accessLogs } from '../../../db';
 import { eq, desc, inArray, and } from 'drizzle-orm';
 
 // Require admin access
-const session = await requireAdmin(Astro.cookies).catch(() => {
+let session;
+try {
+  session = await requireAdmin(Astro.cookies);
+} catch (error) {
   return Astro.redirect('/');
-});
+}
 
 // Get query parameters for filtering
 const repositoryId = Astro.url.searchParams.get('repository');
