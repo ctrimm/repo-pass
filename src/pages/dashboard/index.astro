@@ -15,9 +15,12 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 
 // Require auth access
-const session = await requireAdmin(Astro.cookies).catch(() => {
+let session;
+try {
+  session = await requireAdmin(Astro.cookies);
+} catch (error) {
   return Astro.redirect('/');
-});
+}
 
 // Fetch repositories
 const reposResponse = await fetch(`${Astro.url.origin}/api/dashboard/admin/repositories`, {
