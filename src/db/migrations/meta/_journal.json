@@ -29,6 +29,13 @@
       "when": 1736015400000,
       "tag": "0003_payment_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1736065800000,
+      "tag": "0004_free_repo_email_requirement",
+      "breakpoints": true
     }
   ]
 }

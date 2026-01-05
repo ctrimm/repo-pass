@@ -91,6 +91,7 @@ export const repositories = pgTable(
     subscriptionCadence: subscriptionCadenceEnum('subscription_cadence'),
     customCadenceDays: integer('custom_cadence_days'),
     active: boolean('active').default(true).notNull(),
+    requireEmailForFree: boolean('require_email_for_free').default(false).notNull(), // For free repos: require email or just GitHub username
 
     // Payment provider info (which provider & external IDs)
     paymentProvider: paymentProviderEnum('payment_provider'), // null for free repos

@@ -97,19 +97,6 @@ await requireAuth(Astro.cookies).catch(() => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700">Price (USD)</label>
-                <input
-                  type="number"
-                  name="price"
-                  required
-                  min="1"
-                  step="0.01"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary px-4 py-2 border"
-                  placeholder="49.00"
-                />
-              </div>
-
-              <div>
                 <label class="block text-sm font-medium text-gray-700">Pricing Type</label>
                 <select
                   name="pricingType"
@@ -117,7 +104,20 @@ await requireAuth(Astro.cookies).catch(() => {
                 >
                   <option value="one-time">One-time Purchase</option>
                   <option value="subscription">Subscription</option>
+                  <option value="free">Free</option>
                 </select>
+              </div>
+
+              <div id="price-options">
+                <label class="block text-sm font-medium text-gray-700">Price (USD)</label>
+                <input
+                  type="number"
+                  name="price"
+                  min="1"
+                  step="0.01"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary px-4 py-2 border"
+                  placeholder="49.00"
+                />
               </div>
 
               <div id="subscription-options" class="hidden">
@@ -129,6 +129,23 @@ await requireAuth(Astro.cookies).catch(() => {
                   <option value="monthly">Monthly</option>
                   <option value="yearly">Yearly</option>
                 </select>
+              </div>
+
+              <div id="free-options" class="hidden">
+                <div class="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="requireEmailForFree"
+                    id="requireEmailForFree"
+                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                  <label for="requireEmailForFree" class="ml-2 block text-sm text-gray-700">
+                    Require email address (not just GitHub username)
+                  </label>
+                </div>
+                <p class="mt-1 text-xs text-gray-500">
+                  If unchecked, users only need to provide their GitHub username for free access
+                </p>
               </div>
 
               <div class="flex gap-4 pt-4">
@@ -158,7 +175,9 @@ await requireAuth(Astro.cookies).catch(() => {
 <script>
   const form = document.getElementById('add-repo-form') as HTMLFormElement;
   const pricingType = form.querySelector('[name="pricingType"]') as HTMLSelectElement;
+  const priceOptions = document.getElementById('price-options');
   const subscriptionOptions = document.getElementById('subscription-options');
+  const freeOptions = document.getElementById('free-options');
   const repoSelector = document.getElementById('repo-selector') as HTMLSelectElement;
 
   // Fetch user's repositories
@@ -213,10 +232,20 @@ await requireAuth(Astro.cookies).catch(() => {
   loadRepositories();
 
   pricingType.addEventListener('change', () => {
+    // Show/hide subscription options
     if (pricingType.value === 'subscription') {
       subscriptionOptions?.classList.remove('hidden');
     } else {
       subscriptionOptions?.classList.add('hidden');
+    }
+
+    // Show/hide price options
+    if (pricingType.value === 'free') {
+      priceOptions?.classList.add('hidden');
+      freeOptions?.classList.remove('hidden');
+    } else {
+      priceOptions?.classList.remove('hidden');
+      freeOptions?.classList.add('hidden');
     }
   });
 
@@ -224,7 +253,8 @@ await requireAuth(Astro.cookies).catch(() => {
     e.preventDefault();
 
     const formData = new FormData(form);
-    const price = parseFloat(formData.get('price') as string);
+    const pricingTypeValue = formData.get('pricingType') as string;
+    const price = pricingTypeValue === 'free' ? 0 : parseFloat(formData.get('price') as string);
 
     const data = {
       githubOwner: formData.get('githubOwner'),
@@ -232,11 +262,11 @@ await requireAuth(Astro.cookies).catch(() => {
       displayName: formData.get('displayName'),
       description: formData.get('description'),
       priceCents: Math.round(price * 100),
-      pricingType: formData.get('pricingType'),
+      pricingType: pricingTypeValue,
       subscriptionCadence:
-        formData.get('pricingType') === 'subscription'
-          ? formData.get('subscriptionCadence')
-          : undefined,
+        pricingTypeValue === 'subscription' ? formData.get('subscriptionCadence') : undefined,
+      requireEmailForFree:
+        pricingTypeValue === 'free' ? formData.get('requireEmailForFree') === 'on' : false,
     };
 
     try {
