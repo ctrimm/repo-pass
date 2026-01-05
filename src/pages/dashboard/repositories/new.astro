@@ -1,7 +1,17 @@
 ---
 import PostHogLayout from '@/layouts/PostHogLayout.astro';
 import Layout from '../../../layouts/main.astro';
+import DashboardNav from '../../../components/DashboardNav.astro';
+import Footer from '../../../components/Footer.astro';
 import { requireAuth } from '../../../lib/auth';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../../components/ui/card';
+import { Button } from '../../../components/ui/button';
 
 // Require authentication
 await requireAuth(Astro.cookies).catch(() => {
@@ -10,125 +20,137 @@ await requireAuth(Astro.cookies).catch(() => {
 ---
 
 <PostHogLayout>
-  <Layout title="Add Repository - RepoPass Admin">
-    <div class="min-h-screen bg-gray-50">
-      <header class="bg-white shadow">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 class="text-2xl font-bold text-gray-900">Add Repository</h1>
+  <Layout title="Add Repository - RepoPass">
+    <div class="min-h-screen bg-background flex flex-col">
+      <DashboardNav />
+
+      <main class="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <!-- Page Header -->
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold tracking-tight">Add Repository</h1>
+          <p class="text-muted-foreground mt-2">
+            Connect a GitHub repository to start monetizing access
+          </p>
         </div>
-      </header>
 
-      <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="bg-white rounded-lg shadow p-6">
-          <form id="add-repo-form" class="space-y-6">
-            <!-- Repository Selector -->
-            <div class="pb-6 border-b border-gray-200">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Select from your GitHub repositories
-              </label>
-              <select
-                id="repo-selector"
-                class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
-              >
-                <option value="">Loading your repositories...</option>
-              </select>
-              <p class="mt-2 text-sm text-gray-500">Or manually enter repository details below</p>
-            </div>
+        <Card client:load>
+          <CardHeader>
+            <CardTitle>Repository Details</CardTitle>
+            <CardDescription>Select a repository or enter details manually</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form id="add-repo-form" class="space-y-6">
+              <!-- Repository Selector -->
+              <div class="pb-6 border-b border-gray-200">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Select from your GitHub repositories
+                </label>
+                <select
+                  id="repo-selector"
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+                >
+                  <option value="">Loading your repositories...</option>
+                </select>
+                <p class="mt-2 text-sm text-gray-500">Or manually enter repository details below</p>
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700">GitHub Owner</label>
-              <input
-                type="text"
-                name="githubOwner"
-                required
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
-                placeholder="e.g., ctrimm"
-              />
-            </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">GitHub Owner</label>
+                <input
+                  type="text"
+                  name="githubOwner"
+                  required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+                  placeholder="e.g., ctrimm"
+                />
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Repository Name</label>
-              <input
-                type="text"
-                name="githubRepoName"
-                required
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
-                placeholder="e.g., premium-astro-theme"
-              />
-            </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Repository Name</label>
+                <input
+                  type="text"
+                  name="githubRepoName"
+                  required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+                  placeholder="e.g., premium-astro-theme"
+                />
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Display Name</label>
-              <input
-                type="text"
-                name="displayName"
-                required
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
-                placeholder="e.g., Premium Astro Theme"
-              />
-            </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Display Name</label>
+                <input
+                  type="text"
+                  name="displayName"
+                  required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+                  placeholder="e.g., Premium Astro Theme"
+                />
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Description</label>
-              <textarea
-                name="description"
-                rows="3"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
-                placeholder="A beautiful, production-ready theme..."></textarea>
-            </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Description</label>
+                <textarea
+                  name="description"
+                  rows="3"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+                  placeholder="A beautiful, production-ready theme..."></textarea>
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Price (USD)</label>
-              <input
-                type="number"
-                name="price"
-                required
-                min="1"
-                step="0.01"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
-                placeholder="49.00"
-              />
-            </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Price (USD)</label>
+                <input
+                  type="number"
+                  name="price"
+                  required
+                  min="1"
+                  step="0.01"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+                  placeholder="49.00"
+                />
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700">Pricing Type</label>
-              <select
-                name="pricingType"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
-              >
-                <option value="one-time">One-time Purchase</option>
-                <option value="subscription">Subscription</option>
-              </select>
-            </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Pricing Type</label>
+                <select
+                  name="pricingType"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+                >
+                  <option value="one-time">One-time Purchase</option>
+                  <option value="subscription">Subscription</option>
+                </select>
+              </div>
 
-            <div id="subscription-options" class="hidden">
-              <label class="block text-sm font-medium text-gray-700">Billing Interval</label>
-              <select
-                name="subscriptionCadence"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
-              >
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-            </div>
+              <div id="subscription-options" class="hidden">
+                <label class="block text-sm font-medium text-gray-700">Billing Interval</label>
+                <select
+                  name="subscriptionCadence"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 border"
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
 
-            <div class="flex gap-4">
-              <button
-                type="submit"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
-              >
-                Create Repository
-              </button>
-              <a
-                href="/admin"
-                class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-medium"
-              >
-                Cancel
-              </a>
-            </div>
-          </form>
-        </div>
+              <div class="flex gap-4 pt-4">
+                <button
+                  type="submit"
+                  class="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Create Repository
+                </button>
+                <a
+                  href="/dashboard"
+                  class="bg-secondary hover:bg-secondary/80 text-secondary-foreground px-6 py-2 rounded-lg font-medium transition-colors inline-block"
+                >
+                  Cancel
+                </a>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </main>
+
+      <Footer />
     </div>
   </Layout>
 </PostHogLayout>
@@ -218,14 +240,14 @@ await requireAuth(Astro.cookies).catch(() => {
     };
 
     try {
-      const response = await fetch('/api/admin/repositories', {
+      const response = await fetch('/api/dashboard/admin/repositories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
       if (response.ok) {
-        window.location.href = '/admin';
+        window.location.href = '/dashboard';
       } else {
         const error = await response.json();
         alert(`Error: ${error.error || 'Failed to create repository'}`);

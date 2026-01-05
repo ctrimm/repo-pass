@@ -2,6 +2,7 @@
 import PostHogLayout from '@/layouts/PostHogLayout.astro';
 import Layout from '../../../layouts/main.astro';
 import DashboardNav from '../../../components/DashboardNav.astro';
+import Footer from '../../../components/Footer.astro';
 import { requireAdmin } from '../../../lib/auth';
 import { db, purchases, repositories, accessLogs } from '../../../db';
 import { eq, desc, inArray, and } from 'drizzle-orm';
@@ -91,11 +92,11 @@ const revokedCustomers = customersWithDetails.filter((c) => c.accessStatus === '
 ---
 
 <PostHogLayout>
-  <Layout title="Customers - RepoPass Admin">
-    <div class="min-h-screen bg-gray-50">
+  <Layout title="Customers - RepoPass">
+    <div class="min-h-screen bg-background flex flex-col">
       <DashboardNav />
 
-      <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <!-- Stats -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div class="bg-white rounded-lg shadow p-6">
@@ -301,43 +302,45 @@ const revokedCustomers = customersWithDetails.filter((c) => c.accessStatus === '
             </table>
           </div>
         </div>
+
+        <script>
+          async function revokeAccess(purchaseId: string, username: string) {
+            if (
+              !confirm(
+                `Are you sure you want to revoke access for ${username}? This will remove them as a collaborator.`
+              )
+            ) {
+              return;
+            }
+
+            const reason = prompt('Reason for revocation (optional):');
+
+            try {
+              const response = await fetch(`/api/admin/customers/${purchaseId}/revoke`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason || undefined }),
+              });
+
+              if (response.ok) {
+                alert('Access revoked successfully');
+                window.location.reload();
+              } else {
+                const error = await response.json();
+                alert(`Error: ${error.error || 'Failed to revoke access'}`);
+              }
+            } catch (error) {
+              alert('Error revoking access');
+              console.error(error);
+            }
+          }
+
+          // Make function globally available
+          (window as any).revokeAccess = revokeAccess;
+        </script>
       </main>
+
+      <Footer />
     </div>
   </Layout>
 </PostHogLayout>
-
-<script>
-  async function revokeAccess(purchaseId: string, username: string) {
-    if (
-      !confirm(
-        `Are you sure you want to revoke access for ${username}? This will remove them as a collaborator.`
-      )
-    ) {
-      return;
-    }
-
-    const reason = prompt('Reason for revocation (optional):');
-
-    try {
-      const response = await fetch(`/api/admin/customers/${purchaseId}/revoke`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: reason || undefined }),
-      });
-
-      if (response.ok) {
-        alert('Access revoked successfully');
-        window.location.reload();
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.error || 'Failed to revoke access'}`);
-      }
-    } catch (error) {
-      alert('Error revoking access');
-      console.error(error);
-    }
-  }
-
-  // Make function globally available
-  (window as any).revokeAccess = revokeAccess;
-</script>

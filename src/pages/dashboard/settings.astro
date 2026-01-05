@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/main.astro';
 import DashboardNav from '../../components/DashboardNav.astro';
+import Footer from '../../components/Footer.astro';
 import { requireAuth } from '../../lib/auth';
 import { db, users } from '../../db';
 import { eq } from 'drizzle-orm';
@@ -22,329 +23,333 @@ const paymentProvider = user.paymentProvider || '';
 ---
 
 <Layout title="Settings - RepoPass">
-  <DashboardNav />
+  <div class="min-h-screen bg-background flex flex-col">
+    <DashboardNav />
 
-  <div class="max-w-4xl mx-auto px-4 py-8">
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900">Settings</h1>
-      <p class="mt-2 text-gray-600">Configure your payment provider and repository access</p>
-    </div>
+    <main class="flex-1 max-w-4xl mx-auto px-4 py-8 w-full">
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Settings</h1>
+        <p class="mt-2 text-gray-600">Configure your payment provider and repository access</p>
+      </div>
 
-    <!-- Payment Provider Section -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">Payment Provider</h2>
-      <p class="text-sm text-gray-600 mb-6">
-        Connect a payment provider to start selling access to your repositories. Your API keys are
-        encrypted and stored securely.
-      </p>
+      <!-- Payment Provider Section -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Payment Provider</h2>
+        <p class="text-sm text-gray-600 mb-6">
+          Connect a payment provider to start selling access to your repositories. Your API keys are
+          encrypted and stored securely.
+        </p>
 
-      <form
-        id="payment-provider-form"
-        method="POST"
-        action="/api/dashboard/settings/payment-provider"
-      >
-        <!-- Provider Selection -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Select Payment Provider
-          </label>
-          <select
-            name="provider"
-            id="provider-select"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        <form
+          id="payment-provider-form"
+          method="POST"
+          action="/api/dashboard/settings/payment-provider"
+        >
+          <!-- Provider Selection -->
+          <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Select Payment Provider
+            </label>
+            <select
+              name="provider"
+              id="provider-select"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">-- Select a provider --</option>
+              <option value="stripe" selected={paymentProvider === 'stripe'}>Stripe</option>
+              <option value="lemon_squeezy" selected={paymentProvider === 'lemon_squeezy'}>
+                Lemon Squeezy
+              </option>
+              <option value="gumroad" selected={paymentProvider === 'gumroad'}>Gumroad</option>
+              <option value="paddle" selected={paymentProvider === 'paddle'}>Paddle</option>
+            </select>
+          </div>
+
+          <!-- Stripe Fields -->
+          <div
+            id="stripe-fields"
+            class:list={['provider-fields', { hidden: paymentProvider !== 'stripe' }]}
           >
-            <option value="">-- Select a provider --</option>
-            <option value="stripe" selected={paymentProvider === 'stripe'}>Stripe</option>
-            <option value="lemon_squeezy" selected={paymentProvider === 'lemon_squeezy'}>
-              Lemon Squeezy
-            </option>
-            <option value="gumroad" selected={paymentProvider === 'gumroad'}>Gumroad</option>
-            <option value="paddle" selected={paymentProvider === 'paddle'}>Paddle</option>
-          </select>
-        </div>
-
-        <!-- Stripe Fields -->
-        <div
-          id="stripe-fields"
-          class:list={['provider-fields', { hidden: paymentProvider !== 'stripe' }]}
-        >
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Stripe Configuration</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Secret Key <span class="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                name="stripe_secret_key"
-                value={user.stripeSecretKey || ''}
-                placeholder="sk_live_..."
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-              <p class="text-xs text-gray-500 mt-1">
-                Get from <a
-                  href="https://dashboard.stripe.com/apikeys"
-                  target="_blank"
-                  class="text-blue-600 hover:underline">Stripe Dashboard</a
-                >
-              </p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Publishable Key <span class="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="stripe_publishable_key"
-                value={user.stripePublishableKey || ''}
-                placeholder="pk_live_..."
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Stripe Configuration</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Secret Key <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  name="stripe_secret_key"
+                  value={user.stripeSecretKey || ''}
+                  placeholder="sk_live_..."
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p class="text-xs text-gray-500 mt-1">
+                  Get from <a
+                    href="https://dashboard.stripe.com/apikeys"
+                    target="_blank"
+                    class="text-blue-600 hover:underline">Stripe Dashboard</a
+                  >
+                </p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Publishable Key <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="stripe_publishable_key"
+                  value={user.stripePublishableKey || ''}
+                  placeholder="pk_live_..."
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Lemon Squeezy Fields -->
-        <div
-          id="lemon-squeezy-fields"
-          class:list={['provider-fields', { hidden: paymentProvider !== 'lemon_squeezy' }]}
-        >
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Lemon Squeezy Configuration</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                API Key <span class="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                name="lemon_squeezy_api_key"
-                value={user.lemonSqueezyApiKey || ''}
-                placeholder="Your Lemon Squeezy API key"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-              <p class="text-xs text-gray-500 mt-1">
-                Get from <a
-                  href="https://app.lemonsqueezy.com/settings/api"
-                  target="_blank"
-                  class="text-blue-600 hover:underline">Lemon Squeezy Settings</a
-                >
-              </p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Store ID <span class="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="lemon_squeezy_store_id"
-                value={user.lemonSqueezyStoreId || ''}
-                placeholder="12345"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+          <!-- Lemon Squeezy Fields -->
+          <div
+            id="lemon-squeezy-fields"
+            class:list={['provider-fields', { hidden: paymentProvider !== 'lemon_squeezy' }]}
+          >
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Lemon Squeezy Configuration</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  API Key <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  name="lemon_squeezy_api_key"
+                  value={user.lemonSqueezyApiKey || ''}
+                  placeholder="Your Lemon Squeezy API key"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p class="text-xs text-gray-500 mt-1">
+                  Get from <a
+                    href="https://app.lemonsqueezy.com/settings/api"
+                    target="_blank"
+                    class="text-blue-600 hover:underline">Lemon Squeezy Settings</a
+                  >
+                </p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Store ID <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="lemon_squeezy_store_id"
+                  value={user.lemonSqueezyStoreId || ''}
+                  placeholder="12345"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Gumroad Fields -->
-        <div
-          id="gumroad-fields"
-          class:list={['provider-fields', { hidden: paymentProvider !== 'gumroad' }]}
-        >
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Gumroad Configuration</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Access Token <span class="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                name="gumroad_access_token"
-                value={user.gumroadAccessToken || ''}
-                placeholder="Your Gumroad access token"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-              <p class="text-xs text-gray-500 mt-1">
-                Get from <a
-                  href="https://app.gumroad.com/settings/advanced"
-                  target="_blank"
-                  class="text-blue-600 hover:underline">Gumroad Advanced Settings</a
-                >
-              </p>
+          <!-- Gumroad Fields -->
+          <div
+            id="gumroad-fields"
+            class:list={['provider-fields', { hidden: paymentProvider !== 'gumroad' }]}
+          >
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Gumroad Configuration</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Access Token <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  name="gumroad_access_token"
+                  value={user.gumroadAccessToken || ''}
+                  placeholder="Your Gumroad access token"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p class="text-xs text-gray-500 mt-1">
+                  Get from <a
+                    href="https://app.gumroad.com/settings/advanced"
+                    target="_blank"
+                    class="text-blue-600 hover:underline">Gumroad Advanced Settings</a
+                  >
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Paddle Fields -->
-        <div
-          id="paddle-fields"
-          class:list={['provider-fields', { hidden: paymentProvider !== 'paddle' }]}
-        >
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Paddle Configuration</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Vendor ID <span class="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="paddle_vendor_id"
-                value={user.paddleVendorId || ''}
-                placeholder="12345"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                API Key <span class="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                name="paddle_api_key"
-                value={user.paddleApiKey || ''}
-                placeholder="Your Paddle API key"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-              <p class="text-xs text-gray-500 mt-1">
-                Get from <a
-                  href="https://vendors.paddle.com/authentication"
-                  target="_blank"
-                  class="text-blue-600 hover:underline">Paddle Authentication</a
-                >
-              </p>
+          <!-- Paddle Fields -->
+          <div
+            id="paddle-fields"
+            class:list={['provider-fields', { hidden: paymentProvider !== 'paddle' }]}
+          >
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Paddle Configuration</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Vendor ID <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="paddle_vendor_id"
+                  value={user.paddleVendorId || ''}
+                  placeholder="12345"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  API Key <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  name="paddle_api_key"
+                  value={user.paddleApiKey || ''}
+                  placeholder="Your Paddle API key"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p class="text-xs text-gray-500 mt-1">
+                  Get from <a
+                    href="https://vendors.paddle.com/authentication"
+                    target="_blank"
+                    class="text-blue-600 hover:underline">Paddle Authentication</a
+                  >
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Submit Button -->
-        <div class="mt-6 flex gap-4">
+          <!-- Submit Button -->
+          <div class="mt-6 flex gap-4">
+            <button
+              type="submit"
+              class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Save Payment Provider
+            </button>
+            {
+              paymentProvider && (
+                <button
+                  type="button"
+                  id="disconnect-btn"
+                  class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  Disconnect Provider
+                </button>
+              )
+            }
+          </div>
+        </form>
+      </div>
+
+      <!-- GitHub PAT Section -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">GitHub Personal Access Token</h2>
+        <p class="text-sm text-gray-600 mb-6">
+          Required to automatically add customers as collaborators to your private repositories.
+        </p>
+
+        <form method="POST" action="/api/dashboard/settings/github-pat">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Personal Access Token <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="password"
+              name="github_pat"
+              value={user.githubPersonalAccessToken ? '••••••••••••••••' : ''}
+              placeholder="ghp_..."
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              Generate at <a
+                href="https://github.com/settings/tokens/new?scopes=repo"
+                target="_blank"
+                class="text-blue-600 hover:underline">GitHub Settings</a
+              > (requires 'repo' scope)
+            </p>
+          </div>
+
           <button
             type="submit"
             class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
-            Save Payment Provider
+            Save GitHub Token
           </button>
-          {
-            paymentProvider && (
-              <button
-                type="button"
-                id="disconnect-btn"
-                class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-              >
-                Disconnect Provider
-              </button>
-            )
-          }
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
 
-    <!-- GitHub PAT Section -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">GitHub Personal Access Token</h2>
-      <p class="text-sm text-gray-600 mb-6">
-        Required to automatically add customers as collaborators to your private repositories.
-      </p>
+      <!-- Email Preferences Section (GDPR Compliance) -->
+      <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Email Preferences</h2>
+        <p class="text-sm text-gray-600 mb-6">
+          Control what emails you receive from RepoPass. Note: Critical notifications about your
+          account will still be sent.
+        </p>
 
-      <form method="POST" action="/api/dashboard/settings/github-pat">
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Personal Access Token <span class="text-red-500">*</span>
-          </label>
-          <input
-            type="password"
-            name="github_pat"
-            value={user.githubPersonalAccessToken ? '••••••••••••••••' : ''}
-            placeholder="ghp_..."
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          />
-          <p class="text-xs text-gray-500 mt-1">
-            Generate at <a
-              href="https://github.com/settings/tokens/new?scopes=repo"
-              target="_blank"
-              class="text-blue-600 hover:underline">GitHub Settings</a
-            > (requires 'repo' scope)
-          </p>
-        </div>
+        <form method="POST" action="/api/dashboard/settings/email-preferences">
+          <div class="mb-4">
+            <label class="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                name="email_notifications"
+                checked={user.emailNotifications}
+                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span class="text-sm text-gray-700">
+                I want to receive email notifications about purchases, updates, and announcements
+              </span>
+            </label>
+            <p class="text-xs text-gray-500 mt-2 ml-7">
+              Uncheck to opt-out of non-essential emails. You'll still receive critical account and
+              payment notifications.
+            </p>
+          </div>
 
-        <button
-          type="submit"
-          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          Save GitHub Token
-        </button>
-      </form>
-    </div>
+          <button
+            type="submit"
+            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Save Preferences
+          </button>
+        </form>
+      </div>
+    </main>
 
-    <!-- Email Preferences Section (GDPR Compliance) -->
-    <div class="bg-white rounded-lg shadow-md p-6 mt-6">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">Email Preferences</h2>
-      <p class="text-sm text-gray-600 mb-6">
-        Control what emails you receive from RepoPass. Note: Critical notifications about your
-        account will still be sent.
-      </p>
+    <script>
+      // Show/hide provider fields based on selection
+      const providerSelect = document.getElementById('provider-select');
+      const providerFields = document.querySelectorAll('.provider-fields');
 
-      <form method="POST" action="/api/dashboard/settings/email-preferences">
-        <div class="mb-4">
-          <label class="flex items-center space-x-3">
-            <input
-              type="checkbox"
-              name="email_notifications"
-              checked={user.emailNotifications}
-              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <span class="text-sm text-gray-700">
-              I want to receive email notifications about purchases, updates, and announcements
-            </span>
-          </label>
-          <p class="text-xs text-gray-500 mt-2 ml-7">
-            Uncheck to opt-out of non-essential emails. You'll still receive critical account and
-            payment notifications.
-          </p>
-        </div>
+      providerSelect?.addEventListener('change', (e) => {
+        const selected = (e.target as HTMLSelectElement).value;
+        providerFields.forEach((field) => {
+          field.classList.add('hidden');
+        });
 
-        <button
-          type="submit"
-          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          Save Preferences
-        </button>
-      </form>
-    </div>
+        if (selected) {
+          const targetId = selected.replace('_', '-') + '-fields';
+          document.getElementById(targetId)?.classList.remove('hidden');
+        }
+      });
+
+      // Disconnect provider
+      const disconnectBtn = document.getElementById('disconnect-btn');
+      disconnectBtn?.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to disconnect your payment provider?')) {
+          return;
+        }
+
+        const response = await fetch('/api/dashboard/settings/disconnect-provider', {
+          method: 'POST',
+        });
+
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          alert('Failed to disconnect provider');
+        }
+      });
+    </script>
   </div>
 
-  <script>
-    // Show/hide provider fields based on selection
-    const providerSelect = document.getElementById('provider-select');
-    const providerFields = document.querySelectorAll('.provider-fields');
-
-    providerSelect?.addEventListener('change', (e) => {
-      const selected = (e.target as HTMLSelectElement).value;
-      providerFields.forEach((field) => {
-        field.classList.add('hidden');
-      });
-
-      if (selected) {
-        const targetId = selected.replace('_', '-') + '-fields';
-        document.getElementById(targetId)?.classList.remove('hidden');
-      }
-    });
-
-    // Disconnect provider
-    const disconnectBtn = document.getElementById('disconnect-btn');
-    disconnectBtn?.addEventListener('click', async () => {
-      if (!confirm('Are you sure you want to disconnect your payment provider?')) {
-        return;
-      }
-
-      const response = await fetch('/api/dashboard/settings/disconnect-provider', {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        window.location.reload();
-      } else {
-        alert('Failed to disconnect provider');
-      }
-    });
-  </script>
+  <Footer />
 </Layout>
