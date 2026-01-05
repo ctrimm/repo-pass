@@ -129,7 +129,7 @@ const successType = Astro.url.searchParams.get('success');
                   Get from <a
                     href="https://dashboard.stripe.com/apikeys"
                     target="_blank"
-                    class="text-blue-600 hover:underline">Stripe Dashboard</a
+                    class="text-primary hover:underline">Stripe Dashboard</a
                   >
                 </p>
               </div>
@@ -170,7 +170,7 @@ const successType = Astro.url.searchParams.get('success');
                   Get from <a
                     href="https://app.lemonsqueezy.com/settings/api"
                     target="_blank"
-                    class="text-blue-600 hover:underline">Lemon Squeezy Settings</a
+                    class="text-primary hover:underline">Lemon Squeezy Settings</a
                   >
                 </p>
               </div>
@@ -211,7 +211,7 @@ const successType = Astro.url.searchParams.get('success');
                   Get from <a
                     href="https://app.gumroad.com/settings/advanced"
                     target="_blank"
-                    class="text-blue-600 hover:underline">Gumroad Advanced Settings</a
+                    class="text-primary hover:underline">Gumroad Advanced Settings</a
                   >
                 </p>
               </div>
@@ -252,7 +252,7 @@ const successType = Astro.url.searchParams.get('success');
                   Get from <a
                     href="https://vendors.paddle.com/authentication"
                     target="_blank"
-                    class="text-blue-600 hover:underline">Paddle Authentication</a
+                    class="text-primary hover:underline">Paddle Authentication</a
                   >
                 </p>
               </div>
@@ -299,20 +299,20 @@ const successType = Astro.url.searchParams.get('success');
               name="github_pat"
               value={user.githubPersonalAccessToken ? '••••••••••••••••' : ''}
               placeholder="ghp_..."
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
             />
             <p class="text-xs text-gray-500 mt-1">
               Generate at <a
                 href="https://github.com/settings/tokens/new?scopes=repo"
                 target="_blank"
-                class="text-blue-600 hover:underline">GitHub Settings</a
+                class="text-primary hover:underline">GitHub Settings</a
               > (requires 'repo' scope)
             </p>
           </div>
 
           <button
             type="submit"
-            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            class="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
           >
             Save GitHub Token
           </button>
@@ -348,7 +348,7 @@ const successType = Astro.url.searchParams.get('success');
 
           <button
             type="submit"
-            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            class="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
           >
             Save Preferences
           </button>
