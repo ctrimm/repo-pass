@@ -2,6 +2,7 @@
 import PostHogLayout from '@/layouts/PostHogLayout.astro';
 import Layout from '../../../../layouts/main.astro';
 import DashboardNav from '../../../../components/DashboardNav.astro';
+import Footer from '../../../../components/Footer.astro';
 import { requireAdmin } from '../../../../lib/auth';
 import { db, repositories, pricingHistory, purchases } from '../../../../db';
 import { eq, desc, and } from 'drizzle-orm';
@@ -44,11 +45,11 @@ const totalRevenue = allPurchases
 ---
 
 <PostHogLayout>
-  <Layout title={`Edit ${repository.displayName} - RepoPass Admin`}>
-    <div class="min-h-screen bg-gray-50">
+  <Layout title={`Edit ${repository.displayName} - RepoPass`}>
+    <div class="min-h-screen bg-background flex flex-col">
       <DashboardNav />
 
-      <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <!-- Edit Form -->
           <div class="lg:col-span-2">
@@ -188,7 +189,7 @@ const totalRevenue = allPurchases
                     Save Changes
                   </button>
                   <a
-                    href="/admin"
+                    href="/dashboard"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-medium"
                   >
                     Cancel
@@ -271,7 +272,7 @@ const totalRevenue = allPurchases
                   View on GitHub
                 </a>
                 <a
-                  href={`/admin/customers?repository=${repository.id}`}
+                  href={`/dashboard/customers?repository=${repository.id}`}
                   class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium text-center"
                 >
                   View Customers
@@ -305,6 +306,8 @@ const totalRevenue = allPurchases
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   </Layout>
 </PostHogLayout>
@@ -327,7 +330,7 @@ const totalRevenue = allPurchases
     };
 
     try {
-      const response = await fetch(`/api/admin/repositories/${repositoryId}`, {
+      const response = await fetch(`/api/dashboard/admin/repositories/${repositoryId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
