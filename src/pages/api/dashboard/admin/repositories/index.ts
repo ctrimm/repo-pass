@@ -10,9 +10,10 @@ const createRepositorySchema = z.object({
   displayName: z.string().min(1),
   description: z.string().optional(),
   coverImageUrl: z.string().url().optional(),
-  pricingType: z.enum(['one-time', 'subscription']),
-  priceCents: z.number().int().min(100),
+  pricingType: z.enum(['one-time', 'subscription', 'free']),
+  priceCents: z.number().int().min(0),
   subscriptionCadence: z.enum(['monthly', 'yearly']).optional(),
+  requireEmailForFree: z.boolean().optional(),
 });
 
 export const GET: APIRoute = async ({ cookies }) => {
@@ -61,6 +62,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         pricingType: data.pricingType,
         priceCents: data.priceCents,
         subscriptionCadence: data.subscriptionCadence,
+        requireEmailForFree: data.requireEmailForFree || false,
         active: true,
       })
       .returning();
