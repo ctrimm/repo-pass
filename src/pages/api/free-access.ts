@@ -113,12 +113,12 @@ export const POST: APIRoute = async ({ request }) => {
         throw new Error('Repository owner has not configured GitHub access token');
       }
 
-      await addCollaborator(
-        owner.githubPersonalAccessToken,
-        repository.githubOwner,
-        repository.githubRepoName,
-        githubUsername
-      );
+      await addCollaborator({
+        userId: owner.id,
+        owner: repository.githubOwner,
+        repo: repository.githubRepoName,
+        username: githubUsername,
+      });
 
       // Update purchase access status
       await db
@@ -131,14 +131,17 @@ export const POST: APIRoute = async ({ request }) => {
 
       // Send confirmation email if email was provided
       if (email && owner.emailNotifications) {
+        const emailContent = emailTemplates.accessGranted({
+          githubUsername,
+          repositoryName: repository.displayName,
+          githubOwner: repository.githubOwner,
+          githubRepoName: repository.githubRepoName,
+        });
+
         await sendEmail({
           to: email,
-          subject: `Access Granted: ${repository.displayName}`,
-          html: emailTemplates.accessGranted({
-            githubUsername,
-            repositoryName: repository.displayName,
-            repositoryUrl: `https://github.com/${repository.githubOwner}/${repository.githubRepoName}`,
-          }),
+          subject: emailContent.subject,
+          html: emailContent.html,
         });
       }
 
