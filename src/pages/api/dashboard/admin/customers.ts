@@ -38,26 +38,23 @@ export const GET: APIRoute = async ({ url, cookies }) => {
     }
 
     // SECURITY: Only fetch purchases for user's repositories
+    // OPTIMIZATION: Fix N+1 query problem by fetching related repositories in a single innerJoin query
     const allPurchases = await db
-      .select()
+      .select({
+        purchase: purchases,
+        repositoryName: repositories.displayName,
+        repositorySlug: repositories.slug,
+      })
       .from(purchases)
+      .innerJoin(repositories, eq(purchases.repositoryId, repositories.id))
       .where(and(...conditions))
       .orderBy(desc(purchases.createdAt));
 
-    const filteredPurchases = allPurchases;
-
-    // Get repository details for each purchase
-    const customersWithDetails = await Promise.all(
-      filteredPurchases.map(async (purchase) => {
-        const repo = await db.query.repositories.findFirst({
-          where: eq(repositories.id, purchase.repositoryId),
-        });
-
-        return {
-          ...purchase,
-          repositoryName: repo?.displayName || 'Unknown',
-          repositorySlug: repo?.slug || '',
-        };
+    const customersWithDetails = allPurchases.map(
+      ({ purchase, repositoryName, repositorySlug }) => ({
+        ...purchase,
+        repositoryName: repositoryName || 'Unknown',
+        repositorySlug: repositorySlug || '',
       })
     );
 
