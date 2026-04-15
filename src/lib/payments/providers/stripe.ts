@@ -33,7 +33,7 @@ export class StripeProvider implements IPaymentProvider {
     }
 
     this.stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-02-24.acacia',
+      apiVersion: '2026-03-25.dahlia' as any,
       typescript: true,
     });
   }

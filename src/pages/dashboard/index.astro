@@ -154,7 +154,13 @@ const totalPurchases = (customers || []).length;
                           </td>
                           <td class="px-4 py-3">
                             {repo.pricingType === 'free' ? (
-                              <span class="text-sm font-medium text-muted-foreground">Free</span>
+                              <Badge
+                                client:load
+                                variant="outline"
+                                className="bg-primary/10 text-primary border-primary/20"
+                              >
+                                Free
+                              </Badge>
                             ) : (
                               <span class="text-sm font-medium">
                                 ${(repo.priceCents / 100).toFixed(2)}
