@@ -1,0 +1,18 @@
+
+> repo-pass@0.1.0 dev
+> astro dev
+
+10:30:17 [@astrojs/node] Enabling sessions with filesystem storage
+[vite] connected.
+10:30:18 [types] Generated 1ms
+10:30:18 [WARN] [content] Content config not loaded
+10:30:18 [vite] Re-optimizing dependencies because vite config has changed
+ astro  v6.1.6 ready in 1876 ms
+┃ Local    http://localhost:4321/
+┃ Network  use --host to expose
+10:30:18 watching for file changes...
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+10:30:42 [ERROR] Missing or invalid environment variables: SITE_URL, DATABASE_URL, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_PERSONAL_ACCESS_TOKEN, STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY, EMAIL_FROM, JWT_SECRET, SESSION_SECRET, ENCRYPTION_SECRET, ADMIN_EMAIL
+  Stack trace:
+    at getEnv (/app/src/lib/env.ts:55:13)
+    [...] See full stack trace in the browser, or rerun with --verbose.

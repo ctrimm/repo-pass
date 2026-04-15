@@ -103,8 +103,8 @@ repo-pass/
 │   ├── db/              # Database schema and migrations (Drizzle ORM)
 │   ├── lib/             # Core services (auth, email, github, stripe, analytics)
 │   ├── pages/
-│   │   ├── admin/       # Admin panel pages
-│   │   ├── api/         # API routes (admin, public, webhooks)
+│   │   ├── dashboard/   # Dashboard and admin pages
+│   │   ├── api/         # API routes (dashboard, public, webhooks)
 │   │   └── products/    # Public product pages
 │   └── components/      # UI components
 ├── docs/                # Technical documentation
@@ -124,14 +124,14 @@ repo-pass/
 
 ## Tech Stack
 
-- **Framework**: Astro 5 (SSR) + React 19
+- **Framework**: Astro 6 (SSR) + React 19
 - **Database**: PostgreSQL + Drizzle ORM
 - **Cache**: Redis
 - **Payments**: Stripe
 - **Email**: Resend
 - **Analytics**: PostHog
 - **Hosting**: AWS (SST) / Vercel / Netlify
-- **UI**: Tailwind CSS + shadcn/ui
+- **UI**: Tailwind CSS v4 + shadcn/ui
 
 ## Available Commands
 
@@ -178,6 +178,11 @@ npm run stripe:listen    # Forward webhooks to localhost
 - Pricing history with grandfathering
 - Repository statistics
 - Quick links to GitHub and product pages
+
+### $0 (Free) Repositories
+- Offer free access to your private repositories
+- **Username-only Access**: For free repositories, you can choose to only require a GitHub username, making it a frictionless experience for your users
+- **Lead Generation**: Optionally require an email address to build your mailing list even for free products
 
 ## Use Cases
 
