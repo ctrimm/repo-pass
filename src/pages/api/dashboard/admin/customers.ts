@@ -50,11 +50,13 @@ export const GET: APIRoute = async ({ url, cookies }) => {
       .where(and(...conditions))
       .orderBy(desc(purchases.createdAt));
 
-    const customersWithDetails = allPurchases.map(({ purchase, repositoryName, repositorySlug }) => ({
-      ...purchase,
-      repositoryName: repositoryName || 'Unknown',
-      repositorySlug: repositorySlug || '',
-    }));
+    const customersWithDetails = allPurchases.map(
+      ({ purchase, repositoryName, repositorySlug }) => ({
+        ...purchase,
+        repositoryName: repositoryName || 'Unknown',
+        repositorySlug: repositorySlug || '',
+      })
+    );
 
     return new Response(JSON.stringify({ customers: customersWithDetails }), {
       status: 200,
