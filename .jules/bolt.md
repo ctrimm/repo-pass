@@ -1,0 +1,3 @@
+## 2024-04-15 - Fixed N+1 Query in Customer Retrieval
+**Learning:** Found an N+1 query issue in customer endpoints. The initial implementation retrieved a list of purchases, then iterated over each purchase to fetch repository and access log details sequentially (`await Promise.all` over `db.query.repositories.findFirst`). In a Postgres database using Drizzle ORM, this can easily be simplified using `innerJoin` and `leftJoin` along with `sql\`count(id)\`` aggregation functions for drastically reduced round trips.
+**Action:** When returning a list of entities with related data, prefer using Drizzle ORM's relational queries with `innerJoin`/`leftJoin` over fetching basic entity rows and executing `findFirst` in a loop inside `Promise.all`.
