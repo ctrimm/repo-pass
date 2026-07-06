@@ -216,7 +216,7 @@ export const POST: APIRoute = async ({ request }) => {
     console.error('Checkout error:', error);
 
     if (error instanceof z.ZodError) {
-      return new Response(JSON.stringify({ error: 'Invalid request', details: error.errors }), {
+      return new Response(JSON.stringify({ error: 'Invalid request', details: error.issues }), {
         status: 400,
       });
     }

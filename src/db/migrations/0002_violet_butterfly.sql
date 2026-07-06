@@ -13,15 +13,15 @@ ALTER TYPE "public"."pricing_type" ADD VALUE IF NOT EXISTS 'free';
 --> statement-breakpoint
 
 -- 3. Update role enum to only include 'user'
--- First, update all existing roles to 'user'
-UPDATE "users" SET "role" = 'user' WHERE "role" IN ('admin', 'creator', 'none');
---> statement-breakpoint
+-- (existing rows are force-converted to 'user' below via the USING clause)
 
 -- Create new role enum with only 'user'
 DO $$ BEGIN
+  ALTER TABLE "users" ALTER COLUMN "role" DROP DEFAULT;
   ALTER TYPE "public"."role" RENAME TO "role_old";
   CREATE TYPE "public"."role" AS ENUM('user');
   ALTER TABLE "users" ALTER COLUMN "role" TYPE "role" USING 'user'::role;
+  ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'user';
   DROP TYPE "role_old";
 EXCEPTION
   WHEN duplicate_object THEN null;

@@ -126,7 +126,7 @@ export const PATCH: APIRoute = async ({ params, request, cookies }) => {
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return new Response(JSON.stringify({ error: 'Invalid request', details: error.errors }), {
+      return new Response(JSON.stringify({ error: 'Invalid request', details: error.issues }), {
         status: 400,
       });
     }
