@@ -2,13 +2,16 @@
 
 ## Prerequisites
 
-- **Node.js**: v18+ (v20 recommended)
+- **Node.js**: v22.12+ (see `engines` in `package.json`)
 - **npm**: v9+
-- **PostgreSQL**: v15+ (or use Docker)
-- **Redis**: v7+ (or use Docker)
+- **PostgreSQL**: v15+ (or use Docker via `docker-compose.yml`)
 - **Git**: v2.30+
-- **Stripe CLI**: For webhook testing
-- **GitHub Account**: For OAuth and API testing
+- **Stripe CLI**: For local webhook testing (only needed if testing the Stripe path)
+- **GitHub Account**: For OAuth login and API testing — any GitHub account works, there's no
+  invite list
+
+Redis is **not** used by this app — rate limiting is an in-memory counter
+(`src/lib/rate-limit.ts`). Ignore any older instructions that mention setting up Redis/Upstash.
 
 ## Quick Start
 
@@ -43,9 +46,6 @@ PORT=4321
 
 # Database
 DATABASE_URL=postgresql://postgres:password@localhost:5432/repopass_dev
-
-# Redis
-REDIS_URL=redis://localhost:6379
 
 # GitHub OAuth
 GITHUB_CLIENT_ID=your_github_oauth_client_id
@@ -89,26 +89,7 @@ For **local development**, you have two options:
 docker-compose up -d  # Starts PostgreSQL on port 5432
 ```
 
-### 5. Redis Setup (Upstash - Optional)
-
-Redis is **optional** for MVP. If you want caching:
-
-**Option A: Use Upstash (Recommended - same as production)**
-- Sign up at [https://upstash.com](https://upstash.com)
-- Create Redis database (FREE tier)
-- Copy connection string
-- Add to `.env` as `REDIS_URL`
-
-**Option B: Use Docker (Traditional)**
-```bash
-docker-compose up -d  # Includes Redis on port 6379
-```
-
-**Option C: Skip Redis (For MVP)**
-- Leave `REDIS_URL` empty for now
-- Add it later when you need caching
-
-### 6. Run Database Migrations
+### 5. Run Database Migrations
 
 ```bash
 npm run db:migrate
@@ -120,7 +101,7 @@ Seed initial data (optional):
 npm run db:seed
 ```
 
-### 6. Start Development Server
+### 6. Start Development Server (default port 4321)
 
 ```bash
 npm run dev
@@ -141,7 +122,12 @@ Visit: `http://localhost:4321`
 4. Click "Register application"
 5. Copy Client ID and Client Secret to `.env`
 
-### 2. Create Personal Access Token (PAT)
+### 2. Create a Fallback Personal Access Token (PAT)
+
+Each signed-in user's own OAuth token (requested with `repo read:user user:email` scope at
+login) is what's normally used to add/remove collaborators on their repositories. This
+`GITHUB_PERSONAL_ACCESS_TOKEN` env var is only a fallback used if a user's stored token can't be
+decrypted or is missing — useful for local dev/seeding, not strictly required otherwise.
 
 1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
 2. Click "Generate new token (classic)"
@@ -233,23 +219,20 @@ Sign up at [https://posthog.com](https://posthog.com)
 
 ### Migrations
 
-Create a new migration:
+After changing `src/db/schema.ts`, generate a migration file (diffs against existing migrations):
 
 ```bash
-npm run db:migration:create -- add_new_field
+npm run db:generate
 ```
 
-Run pending migrations:
+Apply pending migrations:
 
 ```bash
 npm run db:migrate
 ```
 
-Rollback last migration:
-
-```bash
-npm run db:rollback
-```
+There is no rollback script — Drizzle Kit doesn't generate down-migrations here. To undo a
+migration, write and apply a new one that reverses the change.
 
 ### Database Schema Visualization
 
@@ -269,28 +252,20 @@ npm run db:reset
 
 ## Testing
 
+RepoPass uses Vitest. There's a single test suite (`npm test`) — no separate unit/integration/E2E
+runners are configured (no Playwright/Cypress setup exists despite the browser being available
+in some environments).
+
 ### Run All Tests
 
 ```bash
 npm test
 ```
 
-### Run Unit Tests
+### Watch Mode
 
 ```bash
-npm run test:unit
-```
-
-### Run Integration Tests
-
-```bash
-npm run test:integration
-```
-
-### Run E2E Tests
-
-```bash
-npm run test:e2e
+npm run test:watch
 ```
 
 ### Test Coverage
@@ -333,28 +308,22 @@ npm run format:check
 
 ## Docker Development
 
-### Full Stack with Docker Compose
+### Local Dependencies via Docker Compose
 
 ```bash
-docker-compose up
+docker-compose up -d
 ```
 
-This starts:
-- Application (port 4321)
+This repo's `docker-compose.yml` only starts local **dependencies**, not the app itself:
 - PostgreSQL (port 5432)
-- Redis (port 6379)
+- MailDev — local SMTP + web UI for viewing sent emails (ports 1025/1080)
 
-### Build Production Docker Image
+Run the app itself with `npm run dev` (Astro's dev server), not through Docker.
 
-```bash
-docker build -t repopass:latest .
-```
+### Building a Docker Image for the App
 
-### Run Production Container
-
-```bash
-docker run -p 4321:4321 --env-file .env repopass:latest
-```
+There is no `Dockerfile` in this repo yet — see [DEPLOYMENT.md](../DEPLOYMENT.md#docker) for a
+minimal one if you want to containerize the app itself.
 
 ## Troubleshooting
 
@@ -378,16 +347,6 @@ pg_isready -h localhost -p 5432
 ```
 
 Verify `DATABASE_URL` in `.env`
-
-### Redis Connection Issues
-
-Check if Redis is running:
-
-```bash
-docker ps # if using Docker
-# or
-redis-cli ping # should return PONG
-```
 
 ### GitHub API Rate Limiting
 
@@ -479,6 +438,7 @@ npm run build            # Build for production
 npm run preview          # Preview production build
 
 # Database
+npm run db:generate      # Generate a migration from schema.ts changes
 npm run db:migrate       # Run migrations
 npm run db:studio        # Open database GUI
 npm run db:seed          # Seed database
@@ -506,5 +466,4 @@ npm run stripe:listen    # Forward webhooks to local server
 
 ---
 
-**Last Updated**: January 1, 2026
-**Version**: 1.0
+**Last Updated**: 2026-07-08

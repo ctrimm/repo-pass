@@ -12,33 +12,29 @@ This document details the end-to-end workflows for RepoPass, including user flow
 
 **Steps**:
 
-1. **Login to Admin Panel**
-   - Navigate to `/admin`
-   - Click "Login with GitHub"
-   - Authorize OAuth app
-   - Redirected to admin dashboard
+1. **Login**
+   - Visit the homepage, click "Start for Free" / "Sign in with GitHub" (`/api/auth/github`)
+   - Authorize the OAuth app (any GitHub account works — no invite or approval needed)
+   - Redirected to `/dashboard`
 
 2. **Add New Repository**
    - Click "Add Repository" button
    - Choose input method:
 
-   **Option A: Manual Entry**
+   **Option A: Select from your GitHub repos**
+   - The form fetches your repos via `/api/auth/github/repositories` and lets you pick one
+   - Owner/repo name auto-fill from the selection
+
+   **Option B: Manual Entry**
    - Enter GitHub owner (e.g., "ctrimm")
    - Enter repository name (e.g., "premium-theme")
-   - Enter display name
-   - Add description
-   - Upload cover image (S3)
+   - Enter display name and description
+   - Cover image is a plain URL field (`coverImageUrl`) — there's no image upload/hosting built
+     in, you paste a link to an already-hosted image
    - Set pricing:
-     - Type: One-time or Subscription
-     - Amount in USD
-     - If subscription: Monthly/Yearly/Custom
-   - Click "Create Repository"
-
-   **Option B: GitHub API Fetch**
-   - Authenticate with GitHub
-   - Select repository from list
-   - Auto-populate: description, stars, last updated
-   - Manually set: pricing, cover image
+     - Type: One-time, Subscription, or Free ($0)
+     - Amount in USD (skipped for Free)
+     - If subscription: Monthly or Yearly
    - Click "Create Repository"
 
 3. **Review Product Page**
@@ -51,15 +47,14 @@ This document details the end-to-end workflows for RepoPass, including user flow
    - Product page goes live
 
 **System Actions**:
-- Creates repository record in database
-- Creates Stripe product and price
-- Generates product page
-- Logs action in access_logs
+- Creates the `repositories` row and an initial `pricing_history` entry
+- Product/price records with the connected payment provider are **not** created yet — that
+  happens lazily on the first checkout attempt (see `src/pages/api/checkout.ts`)
+- Product page becomes reachable at `/products/:slug`
 
 **Success Criteria**:
-- Repository appears in admin panel
-- Product page is accessible
-- Stripe product is created
+- Repository appears in the dashboard
+- Product page is accessible (if `active: true`)
 
 ---
 
@@ -84,9 +79,12 @@ This document details the end-to-end workflows for RepoPass, including user flow
    - Click "Continue to Payment"
 
 4. **Complete Payment**
-   - Redirected to Stripe Checkout
+   - Redirected to the repository owner's connected provider's checkout (Stripe, Lemon Squeezy,
+     Gumroad, or Paddle)
    - Enter payment details
    - Complete purchase
+   - (For a Free repository, this step and the payment step are skipped entirely —
+     `POST /api/free-access` grants access directly.)
 
 5. **Confirmation**
    - Redirected to confirmation page
@@ -105,13 +103,13 @@ This document details the end-to-end workflows for RepoPass, including user flow
 
 **System Actions**:
 - Creates purchase record (status: pending)
-- Creates Stripe Checkout Session
+- Creates a checkout session with the owner's connected provider
 - Sends confirmation email
-- Webhook: Processes payment
+- Webhook: processes the payment event
 - Adds GitHub collaborator
 - Updates purchase status (status: completed, access_status: active)
 - Sends "Access Granted" email
-- Logs all actions
+- Logs collaborator-add and email-send outcomes in `access_logs`
 
 **Success Criteria**:
 - Payment successful
@@ -120,9 +118,16 @@ This document details the end-to-end workflows for RepoPass, including user flow
 - Access granted within 5 minutes
 
 **Edge Cases**:
-- GitHub username doesn't exist → Alert admin
-- Payment fails → Show error, retry
-- Email delivery fails → Retry 3x, alert admin
+- GitHub username doesn't exist → `access_logs` entry marked `failed`, and the repository owner
+  (`ADMIN_EMAIL`) is emailed immediately with the customer's details — no retry (retrying an
+  invalid username won't help)
+- Payment fails → provider's own checkout UI shows the error; the pending purchase record is
+  left as-is
+- Collaborator-add fails for another reason (e.g. transient GitHub API error) → retried 3 times
+  with exponential backoff (~1s/2s/4s) before giving up and alerting the owner
+- Email delivery fails → the error is caught and logged to the console; the purchase/access
+  flow still completes (email failure doesn't block access grant), but the email itself isn't
+  automatically retried
 
 ---
 
@@ -133,7 +138,7 @@ This document details the end-to-end workflows for RepoPass, including user flow
 **Steps**:
 
 1. **Navigate to Customers**
-   - Admin Panel → Customers
+   - Dashboard → Customers
    - Search or filter for customer
 
 2. **Review Customer Details**
@@ -156,7 +161,10 @@ This document details the end-to-end workflows for RepoPass, including user flow
 - Update purchase record (access_status: revoked)
 - Log revocation with reason
 - Send revocation email to customer
-- Cancel Stripe subscription (if applicable)
+- Cancel the Stripe subscription, if the purchase has one (`stripe_subscription_id` set) — note
+  that this specifically calls the Stripe API (`src/lib/stripe.ts`), so a subscription sold
+  through Lemon Squeezy, Gumroad, or Paddle is **not** actually canceled by this step today; only
+  GitHub access is revoked and the customer would need to be told to cancel on the provider's side
 
 **Success Criteria**:
 - Collaborator removed from GitHub
@@ -169,7 +177,9 @@ This document details the end-to-end workflows for RepoPass, including user flow
 
 ### 4. Purchase Processing Workflow
 
-**Trigger**: Stripe webhook `charge.succeeded` or `customer.subscription.created`
+**Trigger**: Stripe webhook `checkout.session.completed` (covers both one-time purchases and new
+subscriptions). The Lemon Squeezy/Gumroad/Paddle webhooks follow the same general shape with
+their own event names — see `docs/API.md`.
 
 **Steps**:
 
@@ -184,45 +194,45 @@ This document details the end-to-end workflows for RepoPass, including user flow
    - Verify purchase exists and status is 'pending'
 
 3. **Validate GitHub Username**
-   - Call GitHub API: `/users/{username}`
-   - If user doesn't exist:
-     - Create alert for admin
-     - Send email to admin with details
-     - Update purchase status to 'failed'
-     - Send email to customer requesting valid username
-     - Exit workflow
+   - Call GitHub API to check the username exists (`checkUserExists` in `src/lib/github.ts`)
+   - If the user doesn't exist:
+     - `access_logs` entry: `collaborator_added` / `failed`
+     - Email `ADMIN_EMAIL` with the customer's details — no retry
+     - Purchase is left as-is (not explicitly marked `failed` for this specific case); webhook
+       returns `200` so the provider doesn't keep retrying delivery
+     - There is no separate "please resend your username" email to the customer
 
 4. **Add Collaborator**
-   - Call GitHub API: `PUT /repos/{owner}/{repo}/collaborators/{username}`
-   - Permission: "pull" (read-only)
-   - Retry logic: 3 attempts, exponential backoff (2s, 4s, 8s)
+   - Call GitHub API to add the collaborator with `pull` (read-only) permission
+   - Wrapped in a local `addCollaboratorWithRetry` helper (duplicated per webhook handler file,
+     not centralized in `src/lib/github.ts`): 3 attempts, exponential backoff (~1s, 2s, 4s)
 
-5. **Handle API Response**
+5. **Handle Result**
 
    **Success**:
-   - Update purchase: status = 'completed', access_status = 'active'
-   - Record access_granted_at timestamp
-   - Create access_log entry (action: 'collaborator_added', status: 'success')
+   - Update purchase: `access_status = 'active'`, `access_granted_at` set
+   - `access_logs` entry: `collaborator_added` / `success`
 
-   **Failure**:
-   - Create access_log entry (action: 'collaborator_added', status: 'failed')
-   - Alert admin via email
-   - Update purchase: status = 'failed'
-   - Exit workflow
+   **Failure (after 3 retries)**:
+   - `access_logs` entry: `collaborator_added` / `failed`
+   - Purchase `status` set to `'failed'`
+   - Email `ADMIN_EMAIL` asking them to manually add the collaborator
 
 6. **Send Access Granted Email**
    - Template: "Access Granted"
-   - Include: Repository link, clone instructions, access terms
-   - Retry: 3 attempts if email fails
+   - Include: Repository link, access terms
+   - No automatic retry if this specific email send fails — the failure is caught, logged to
+     `access_logs` as `email_sent_access_granted` / `failed`, and does not block the purchase
+     from being marked active
 
 7. **Log Email Status**
-   - Create access_log entry (action: 'email_sent_access_granted', status: 'success' or 'failed')
+   - `access_logs` entry: `email_sent_access_granted`, `success` or `failed`
 
 **Error Handling**:
-- GitHub API rate limit → Wait and retry
-- GitHub API 404 → Username doesn't exist, alert admin
-- Email delivery failure → Retry, alert admin
-- Database error → Rollback transaction, alert admin
+- GitHub API failure adding a collaborator → retried 3x with backoff, then owner is alerted
+- GitHub username doesn't exist → owner alerted immediately, no retry
+- Email delivery failure → logged, not retried, does not block access being granted
+- Database errors are not explicitly caught/rolled back beyond each individual query
 
 **Success Criteria**:
 - Purchase status = 'completed'
@@ -354,14 +364,15 @@ This document details the end-to-end workflows for RepoPass, including user flow
 
 **Steps**:
 
-1. **Admin Action**
-   - POST `/api/admin/customers/:purchaseId/revoke`
+1. **Owner Action**
+   - `POST /api/dashboard/admin/customers/:purchaseId/revoke`
    - Include reason (e.g., "Account sharing suspected")
 
 2. **Validate Request**
-   - Verify admin authentication
-   - Verify purchase exists
-   - Verify access_status = 'active'
+   - Verify session (must be logged in)
+   - Verify the purchase exists and its repository is owned by the caller (no explicit check
+     that `access_status` is currently `'active'` — revoking an already-revoked purchase is a
+     harmless no-op)
 
 3. **Revoke GitHub Access**
    - Call GitHub API: `DELETE /repos/{owner}/{repo}/collaborators/{username}`
@@ -415,133 +426,76 @@ This document details the end-to-end workflows for RepoPass, including user flow
 
 ### 10. Email Delivery Failure
 
-**Scenario**: Email service is down or email bounces
+**Actual behavior**: `sendEmail` calls are wrapped in try/catch; a failure is caught, logged
+(usually to `access_logs` as a `failed` status, or just `console.error`), and does **not** block
+the surrounding purchase/access-grant flow. There is no automatic retry of a failed email send,
+and no SMS channel exists anywhere in this codebase — Resend (email) is the only notification
+channel.
 
-**Steps**:
-
-1. Email send fails
-2. Retry 3 times with exponential backoff
-3. If all retries fail:
-   - Log failure in access_logs
-   - Alert admin via SMS (critical emails only)
-   - Admin manually sends email or contacts customer
-
-**Mitigation**: Use reliable email service (AWS SES or SendGrid)
+**Not implemented**: retrying the email itself, SMS alerting.
 
 ---
 
 ### 11. GitHub API Rate Limit
 
-**Scenario**: Too many API calls, rate limit exceeded
-
-**Steps**:
-
-1. GitHub API returns 429 or 403 (rate limit)
-2. Extract `X-RateLimit-Reset` header
-3. Wait until reset time
-4. Retry request
-5. If urgent, alert admin to investigate
-
-**Mitigation**:
-- Use authenticated API calls (higher rate limit)
-- Implement caching for repo metadata
-- Queue access grants if rate limit approached
+**Actual behavior**: none of this is implemented. `src/lib/github.ts` does not inspect rate-limit
+response headers, back off, or queue requests. In practice this means a burst of purchases could
+hit GitHub's rate limit (5000 req/hour authenticated) and fail outright rather than gracefully
+retrying — that failure would surface the same way any other collaborator-add failure does (see
+Purchase Processing Workflow above: 3 retries with backoff, then an alert email to the owner).
 
 ---
 
 ### 12. Duplicate Purchase Attempt
 
-**Scenario**: Customer tries to purchase same repository twice
+**Actual behavior**: `POST /api/checkout` does **not** check for an existing purchase by this
+email/username before creating a new pending purchase and checkout session. A customer can
+purchase the same repository more than once; there is no "you already have access" message.
 
-**Steps**:
-
-1. Checkout form checks existing purchases
-2. If active purchase exists:
-   - Show message: "You already have access to this repository"
-   - Provide link to repository
-3. If revoked purchase exists:
-   - Allow re-purchase (new purchase record)
-
-**Future Enhancement**: Show access status on product page if email matches
+**Not implemented / future enhancement**: checking for an existing active purchase before
+checkout, and showing access status on the product page.
 
 ---
 
 ### 13. Repository Deleted from GitHub
 
-**Scenario**: Owner deletes repository from GitHub after selling access
-
-**Steps**:
-
-1. System periodically checks repository existence (cron job)
-2. If repository doesn't exist:
-   - Mark repository as inactive
-   - Alert admin
-   - Send email to customers with access (optional)
-3. Admin decides action: Refund, migrate to new repo, etc.
-
-**Future Enhancement**: Webhook from GitHub for repository deletions
+**Not implemented.** There is no scheduled job that checks whether a registered repository still
+exists on GitHub, no automatic deactivation, and no GitHub webhook listener for repository
+deletion. If an owner deletes the underlying GitHub repo, RepoPass has no way of knowing until a
+collaborator-add call starts failing.
 
 ---
 
 ## Scheduled Workflows
 
-### 14. Daily Repository Metadata Sync
-
-**Schedule**: Daily at 2 AM UTC
-
-**Steps**:
-
-1. Query all active repositories
-2. For each repository:
-   - Call GitHub API to fetch stars, last_updated
-   - Update database record
-3. Log sync results
-4. Alert admin if any errors
-
-**Purpose**: Keep product pages up-to-date with GitHub stats
-
----
-
-### 15. Weekly Revenue Report
-
-**Schedule**: Every Monday at 9 AM UTC
-
-**Steps**:
-
-1. Query purchases from last 7 days
-2. Calculate metrics:
-   - Total revenue
-   - New customers
-   - Active subscriptions
-   - Churn rate
-3. Generate report
-4. Email to admin
-
-**Purpose**: Keep admin informed of business metrics
+**None exist.** There is no cron/scheduled job anywhere in this codebase (no `node-cron`, no SST
+cron construct, no GitHub Actions scheduled workflow) — no daily GitHub-metadata sync and no
+periodic revenue report. `github_stars`/`github_last_updated` on a repository are only ever
+updated if something explicitly calls `getRepositoryMetadata` (currently nothing in the UI does
+this automatically after a repository is created).
 
 ---
 
 ## Monitoring & Alerts
 
-### Critical Alerts (Immediate)
+**Actual behavior**: the only alerting channel is email to `ADMIN_EMAIL`/`AdminEmail`, sent
+inline from the webhook handlers for specific failure cases (invalid GitHub username, failed
+collaborator add after retries, failed payment webhook). There is no SMS, no digest/summary
+email, and no alerting for infrastructure-level issues (database connection failures, webhook
+processing failures) beyond whatever surfaces as an unhandled exception in the request logs.
 
-- Database connection failure
-- GitHub API errors (after retries)
-- Webhook processing failure
-- Payment processing errors
+### What Actually Triggers an Owner Email Today
 
-**Delivery**: Email + SMS to admin
+- GitHub username doesn't exist (Stripe/Lemon Squeezy/Gumroad/Paddle checkout webhooks)
+- Collaborator-add fails after 3 retries
+- `invoice.payment_failed` (Stripe)
 
-### Warning Alerts (Daily Digest)
+### Not Implemented
 
-- Failed email deliveries
-- High churn rate (> 10%)
-- Failed payment attempts
-- Invalid GitHub usernames
-
-**Delivery**: Email to admin
+- Daily/weekly digest emails
+- Churn-rate alerting
+- Any alert channel other than email
 
 ---
 
-**Last Updated**: January 1, 2026
-**Version**: 1.0
+**Last Updated**: 2026-07-08

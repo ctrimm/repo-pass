@@ -2,463 +2,195 @@
 
 ## Overview
 
-RepoPass provides REST APIs for admin operations, public product pages, and webhook handling.
+RepoPass exposes Astro API routes for GitHub OAuth login, the owner dashboard, public
+product/checkout pages, and payment-provider webhooks. There is no versioned `/api/v1/` prefix
+and no separate public REST API for third parties — these routes back the app's own UI.
 
-## Base URLs
+## Base URL
 
-- **Development**: `http://localhost:4321/api`
-- **Staging**: `https://staging.repopass.com/api`
-- **Production**: `https://repopass.com/api`
+Requests go to whatever `SITE_URL` is configured for the deployment (`http://localhost:4321` in
+local dev). There's no separate staging/production API host baked into the code — that's purely
+a function of where you deploy.
 
 ## Authentication
 
-### Admin Routes
+RepoPass has **no Bearer-token API auth and no magic-link login**. The only login method is
+GitHub OAuth, and sessions are a JWT stored in an HTTP-only cookie (`repopass_session`, see
+`src/lib/auth.ts`) — not sent via an `Authorization` header.
 
-All admin routes require authentication via JWT token.
+Any GitHub account can sign in; there's no invite list or `ADMIN_EMAIL` allowlist gating login.
+Each signed-in user only ever sees their own repositories and customers (enforced by filtering
+every query on `ownerId = session.userId`).
 
-**Headers**:
-```
-Authorization: Bearer <jwt_token>
-```
+**Login flow**:
+1. `GET /api/auth/github` — redirects to GitHub's OAuth authorize URL (requests `repo read:user
+   user:email` scope)
+2. GitHub redirects back to `GET /api/auth/github/callback` with a `code`
+3. The callback exchanges the code for an access token, creates/updates the `users` row
+   (storing the encrypted OAuth token as the user's GitHub credential), sets the session cookie,
+   and redirects to `/dashboard`
+4. `POST /api/auth/logout` clears the session cookie
 
-**Token Acquisition**:
-- Login via GitHub OAuth: `POST /api/auth/github/callback`
-- Magic link: `POST /api/auth/magic-link`
-
-**Token Expiration**: 30 days
+**Session expiration**: 30 days (`setExpirationTime('30d')` in `src/lib/auth.ts`).
 
 ### Rate Limiting
 
-- **Authenticated**: 1000 requests/hour
-- **Unauthenticated**: 100 requests/hour
-- **Webhook**: No limit (validated by signature)
+Only two endpoints are rate-limited, via an in-memory per-process counter
+(`src/lib/rate-limit.ts`) — there is no rate limiting on any other route:
 
-## Admin API
+| Endpoint | Limit |
+|---|---|
+| `POST /api/checkout` | 5 requests / minute / client |
+| `POST /api/free-access` | 5 requests / minute / client |
 
-### Repositories
+A `429` response includes `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and
+`X-RateLimit-Reset` headers.
 
-#### Create Repository
+## Auth Routes
 
-```http
-POST /api/dashboard/repositories
-```
+### `GET /api/auth/github`
+Redirects to GitHub's OAuth authorize page.
 
-**Request Body**:
-```json
-{
-  "githubOwner": "ctrimm",
-  "githubRepoName": "premium-theme",
-  "displayName": "Premium Astro Theme",
-  "description": "A beautiful production-ready theme",
-  "coverImageUrl": "https://cdn.example.com/cover.png",
-  "pricingType": "one-time",
-  "priceCents": 4900,
-  "subscriptionCadence": null
-}
-```
+### `GET /api/auth/github/callback`
+OAuth callback. Redirects to `/dashboard` on success, or `/login?error=oauth_failed` /
+`/login?error=server_error` on failure.
 
-**Response** (201 Created):
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "slug": "premium-astro-theme",
-  "displayName": "Premium Astro Theme",
-  "githubOwner": "ctrimm",
-  "githubRepoName": "premium-theme",
-  "description": "A beautiful production-ready theme",
-  "coverImageUrl": "https://cdn.example.com/cover.png",
-  "pricingType": "one-time",
-  "priceCents": 4900,
-  "active": true,
-  "createdAt": "2026-01-01T00:00:00Z"
-}
-```
-
-#### List Repositories
-
-```http
-GET /api/dashboard/repositories?page=1&limit=20&active=true
-```
-
-**Query Parameters**:
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 20, max: 100)
-- `active` (optional): Filter by active status (true/false)
+### `GET /api/auth/github/repositories`
+Returns the signed-in user's own GitHub repositories (for the "select from your GitHub repos"
+dropdown on the Add Repository form).
 
 **Response** (200 OK):
 ```json
 {
   "repositories": [
     {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "slug": "premium-astro-theme",
-      "displayName": "Premium Astro Theme",
-      "pricingType": "one-time",
-      "priceCents": 4900,
-      "active": true,
-      "purchaseCount": 42,
-      "totalRevenueCents": 205800,
-      "createdAt": "2026-01-01T00:00:00Z"
+      "id": 123456,
+      "name": "premium-theme",
+      "fullName": "ctrimm/premium-theme",
+      "owner": "ctrimm",
+      "description": "A beautiful production-ready theme",
+      "isPrivate": true,
+      "stars": 12,
+      "url": "https://github.com/ctrimm/premium-theme"
     }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 5,
-    "totalPages": 1
-  }
+  ]
 }
 ```
 
-#### Get Repository
+### `POST /api/auth/logout`
+Clears the session cookie.
 
-```http
-GET /api/dashboard/repositories/:id
-```
+## Dashboard API (Authenticated, Owner-Scoped)
+
+All routes below require a valid session cookie and only operate on data owned by
+`session.userId`. Unauthenticated requests get `401`.
+
+### Repositories
+
+#### `GET /api/dashboard/admin/repositories`
+List the current user's repositories.
 
 **Response** (200 OK):
 ```json
+{ "repositories": [ /* full repositories rows */ ] }
+```
+
+#### `POST /api/dashboard/admin/repositories`
+Create a repository.
+
+**Request Body**:
+```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "slug": "premium-astro-theme",
-  "displayName": "Premium Astro Theme",
   "githubOwner": "ctrimm",
   "githubRepoName": "premium-theme",
+  "displayName": "Premium Astro Theme",
   "description": "A beautiful production-ready theme",
-  "coverImageUrl": "https://cdn.example.com/cover.png",
+  "coverImageUrl": "https://example.com/cover.png",
   "pricingType": "one-time",
   "priceCents": 4900,
-  "active": true,
-  "githubStars": 127,
-  "githubLastUpdated": "2026-01-01T00:00:00Z",
-  "stats": {
-    "totalPurchases": 42,
-    "activePurchases": 42,
-    "totalRevenueCents": 205800
-  },
-  "createdAt": "2026-01-01T00:00:00Z",
-  "updatedAt": "2026-01-01T00:00:00Z"
+  "subscriptionCadence": "monthly",
+  "requireEmailForFree": false
 }
 ```
+`pricingType` is one of `one-time` / `subscription` / `free`. A `slug` is generated from
+`githubRepoName`, and an initial `pricing_history` row is created automatically.
 
-#### Update Repository
+**Response** (201 Created): the created repository row.
 
-```http
-PATCH /api/dashboard/repositories/:id
-```
+#### `GET /api/dashboard/admin/repositories/:id`
+Returns the repository (verifying ownership) plus `stats: { totalPurchases, activePurchases,
+totalRevenueCents }`.
 
-**Request Body** (partial update):
-```json
-{
-  "displayName": "Premium Astro Theme v2",
-  "priceCents": 5900,
-  "description": "Updated description"
-}
-```
+#### `PATCH /api/dashboard/admin/repositories/:id`
+Partial update (`displayName`, `description`, `coverImageUrl`, `priceCents`, `active`).
+`githubOwner`/`githubRepoName` cannot be changed after creation. Changing `priceCents` closes out
+the current `pricing_history` row (sets `effectiveUntil`) and opens a new one — this is how
+grandfathering works: existing purchases keep the price recorded at time of purchase.
 
-**Response** (200 OK):
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "displayName": "Premium Astro Theme v2",
-  "priceCents": 5900,
-  "updatedAt": "2026-01-01T01:00:00Z"
-}
-```
-
-**Note**: Price changes create a new entry in `pricing_history` table for grandfathering.
-
-#### Deactivate Repository
-
-```http
-DELETE /api/dashboard/repositories/:id
-```
-
-**Response** (200 OK):
-```json
-{
-  "message": "Repository deactivated successfully",
-  "id": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-**Note**: Soft delete - sets `active = false`. Existing purchases remain valid.
-
-#### Fetch GitHub Data
-
-```http
-POST /api/dashboard/repositories/:id/fetch-github-data
-```
-
-Fetches latest repository metadata from GitHub API.
-
-**Response** (200 OK):
-```json
-{
-  "githubStars": 127,
-  "githubLastUpdated": "2026-01-01T00:00:00Z",
-  "description": "A beautiful production-ready theme"
-}
-```
+#### `DELETE /api/dashboard/admin/repositories/:id`
+Soft delete — sets `active = false`. Existing purchases are untouched.
 
 ### Customers
 
-#### List Customers
+#### `GET /api/dashboard/admin/customers?repositoryId=<uuid>&status=<active|pending|revoked>`
+Lists purchases across all of the current user's repositories (joined with repository name/slug),
+optionally filtered by repository or `access_status`.
 
-```http
-GET /api/dashboard/customers?page=1&limit=20&repositoryId=<uuid>&status=active
-```
+#### `POST /api/dashboard/admin/customers/:purchaseId/revoke`
+Revokes a customer's access: removes the GitHub collaborator, cancels the Stripe subscription if
+one exists, marks the purchase `access_status = 'revoked'`, logs an `access_logs` entry, and
+emails the customer.
 
-**Query Parameters**:
-- `page` (optional): Page number
-- `limit` (optional): Items per page
-- `repositoryId` (optional): Filter by repository
-- `status` (optional): Filter by access_status (pending/active/revoked)
+**Request Body**: `{ "reason": "Account sharing suspected" }` (optional)
 
-**Response** (200 OK):
+**Response** (200 OK): `{ "message": "Access revoked successfully", "purchaseId": "..." }`
+
+> There is no "flag customer" endpoint, no standalone dashboard-metrics API, and no
+> `access-logs` list API — the dashboard overview page (`/dashboard`) and customer pages query
+> the database directly in Astro frontmatter rather than calling a separate JSON endpoint.
+
+### Settings
+
+- `POST /api/dashboard/settings/github-pat` — store an encrypted GitHub PAT override
+- `POST /api/dashboard/settings/payment-provider` — connect Stripe / Lemon Squeezy / Gumroad /
+  Paddle credentials (encrypted at rest); clears the other providers' fields when switching
+- `POST /api/dashboard/settings/disconnect-provider` — clear the connected payment provider
+- `POST /api/dashboard/settings/email-preferences` — toggle the `email_notifications` opt-out
+
+These are plain HTML form posts (`request.formData()`), not JSON APIs.
+
+## Public Routes (Unauthenticated)
+
+### Product Page
+`GET /products/:slug` is a server-rendered Astro page (`src/pages/products/[slug].astro`), not a
+JSON API — it queries the repository by slug directly and renders the purchase form.
+
+### `POST /api/checkout`
+Creates a checkout session with whichever payment provider the repository owner has connected.
+
+**Request Body**:
 ```json
 {
-  "customers": [
-    {
-      "id": "650e8400-e29b-41d4-a716-446655440001",
-      "email": "customer@example.com",
-      "githubUsername": "johndoe",
-      "repositoryName": "Premium Astro Theme",
-      "purchaseType": "one-time",
-      "amountCents": 4900,
-      "status": "completed",
-      "accessStatus": "active",
-      "accessGrantedAt": "2026-01-01T00:05:00Z",
-      "createdAt": "2026-01-01T00:00:00Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 42,
-    "totalPages": 3
-  }
-}
-```
-
-#### Get Customer
-
-```http
-GET /api/dashboard/customers/:purchaseId
-```
-
-**Response** (200 OK):
-```json
-{
-  "id": "650e8400-e29b-41d4-a716-446655440001",
+  "repositoryId": "550e8400-e29b-41d4-a716-446655440000",
   "email": "customer@example.com",
-  "githubUsername": "johndoe",
-  "repository": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "displayName": "Premium Astro Theme",
-    "githubOwner": "ctrimm",
-    "githubRepoName": "premium-theme"
-  },
-  "purchaseType": "subscription",
-  "amountCents": 2900,
-  "status": "completed",
-  "accessStatus": "active",
-  "stripeCustomerId": "cus_xxxxx",
-  "stripeSubscriptionId": "sub_xxxxx",
-  "accessLogs": [
-    {
-      "action": "collaborator_added",
-      "status": "success",
-      "createdAt": "2026-01-01T00:05:00Z"
-    },
-    {
-      "action": "email_sent_access_granted",
-      "status": "success",
-      "createdAt": "2026-01-01T00:05:30Z"
-    }
-  ],
-  "createdAt": "2026-01-01T00:00:00Z",
-  "accessGrantedAt": "2026-01-01T00:05:00Z"
-}
-```
-
-#### Revoke Access
-
-```http
-PATCH /api/dashboard/customers/:purchaseId/revoke
-```
-
-**Request Body**:
-```json
-{
-  "reason": "Account sharing suspected"
+  "githubUsername": "johndoe"
 }
 ```
 
 **Response** (200 OK):
 ```json
 {
-  "message": "Access revoked successfully",
+  "checkoutUrl": "https://checkout.stripe.com/c/pay/cs_test_xxxxx",
   "purchaseId": "650e8400-e29b-41d4-a716-446655440001",
-  "revokedAt": "2026-01-01T12:00:00Z"
+  "provider": "stripe"
 }
 ```
 
-**Side Effects**:
-- Removes GitHub collaborator
-- Updates `access_status` to 'revoked'
-- Sends revocation email to customer
-- Creates access_log entry
+Rejects with `400` if the repository is `free` (use `/api/free-access` instead) or if the owner
+hasn't configured a payment provider yet.
 
-#### Flag Customer
-
-```http
-POST /api/dashboard/customers/:purchaseId/flag
-```
-
-**Request Body**:
-```json
-{
-  "reason": "Suspicious activity detected"
-}
-```
-
-**Response** (200 OK):
-```json
-{
-  "message": "Customer flagged successfully",
-  "purchaseId": "650e8400-e29b-41d4-a716-446655440001"
-}
-```
-
-**Note**: Flagging doesn't revoke access automatically. Admin must manually revoke.
-
-### Dashboard
-
-#### Get Dashboard Metrics
-
-```http
-GET /api/dashboard/dashboard?period=30d
-```
-
-**Query Parameters**:
-- `period` (optional): Time period (7d/30d/90d/1y/all) (default: 30d)
-
-**Response** (200 OK):
-```json
-{
-  "period": "30d",
-  "metrics": {
-    "totalRevenueCents": 245000,
-    "totalPurchases": 50,
-    "activePurchases": 48,
-    "activeSubscriptions": 12,
-    "churnRate": 4.0,
-    "conversionRate": 12.5,
-    "averageOrderValueCents": 4900
-  },
-  "recentSales": [
-    {
-      "id": "750e8400-e29b-41d4-a716-446655440002",
-      "repositoryName": "Premium Astro Theme",
-      "email": "customer@example.com",
-      "amountCents": 4900,
-      "createdAt": "2026-01-01T10:00:00Z"
-    }
-  ],
-  "failedPayments": [
-    {
-      "id": "850e8400-e29b-41d4-a716-446655440003",
-      "email": "customer2@example.com",
-      "repositoryName": "Premium Astro Theme",
-      "amountCents": 2900,
-      "reason": "insufficient_funds",
-      "createdAt": "2026-01-01T09:00:00Z"
-    }
-  ]
-}
-```
-
-### Access Logs
-
-#### Get Access Logs
-
-```http
-GET /api/dashboard/access-logs?purchaseId=<uuid>&action=collaborator_added&status=failed
-```
-
-**Query Parameters**:
-- `purchaseId` (optional): Filter by purchase
-- `repositoryId` (optional): Filter by repository
-- `action` (optional): Filter by action type
-- `status` (optional): Filter by status (success/failed/retry)
-- `page` (optional): Page number
-- `limit` (optional): Items per page
-
-**Response** (200 OK):
-```json
-{
-  "logs": [
-    {
-      "id": "950e8400-e29b-41d4-a716-446655440004",
-      "purchaseId": "650e8400-e29b-41d4-a716-446655440001",
-      "action": "collaborator_added",
-      "status": "success",
-      "metadata": {
-        "githubUsername": "johndoe",
-        "repositoryFullName": "ctrimm/premium-theme"
-      },
-      "createdAt": "2026-01-01T00:05:00Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 50,
-    "total": 150,
-    "totalPages": 3
-  }
-}
-```
-
-## Public API
-
-### Products
-
-#### Get Product Details
-
-```http
-GET /api/products/:slug
-```
-
-**Response** (200 OK):
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "slug": "premium-astro-theme",
-  "displayName": "Premium Astro Theme",
-  "description": "A beautiful production-ready theme",
-  "coverImageUrl": "https://cdn.example.com/cover.png",
-  "pricingType": "one-time",
-  "priceCents": 4900,
-  "subscriptionCadence": null,
-  "githubOwner": "ctrimm",
-  "githubRepoName": "premium-theme",
-  "githubStars": 127,
-  "features": [
-    "Fully responsive design",
-    "Dark mode support",
-    "SEO optimized"
-  ]
-}
-```
-
-### Checkout
-
-#### Create Checkout Session
-
-```http
-POST /api/checkout
-```
+### `POST /api/free-access`
+For `pricingType: 'free'` repositories — grants access without any payment step.
 
 **Request Body**:
 ```json
@@ -468,117 +200,45 @@ POST /api/checkout
   "email": "customer@example.com"
 }
 ```
-
-**Response** (200 OK):
-```json
-{
-  "sessionId": "cs_test_xxxxx",
-  "sessionUrl": "https://checkout.stripe.com/c/pay/cs_test_xxxxx",
-  "purchaseId": "650e8400-e29b-41d4-a716-446655440001"
-}
-```
-
-**Side Effects**:
-- Creates Stripe Checkout Session
-- Creates purchase record with status 'pending'
-- Sends confirmation email
+`email` is only required if the repository has `requireEmailForFree: true`.
 
 ## Webhooks
 
-### Stripe Webhook
+Each connected payment provider has its own webhook endpoint. All of them: create/update the
+matching `purchases` row, add or remove the GitHub collaborator via `src/lib/github.ts`, write an
+`access_logs` entry, and send a transactional email via Resend.
 
-```http
-POST /api/webhooks/stripe
-```
+### `POST /api/webhooks/stripe`
+Verifies the `Stripe-Signature` header against `STRIPE_WEBHOOK_SECRET`. Handles:
+- `checkout.session.completed` → grant access (one-time or new subscription)
+- `customer.subscription.deleted` → revoke access
+- `invoice.payment_succeeded` → log renewal
+- `invoice.payment_failed` → alert the repository owner (`ADMIN_EMAIL`)
 
-**Headers**:
-```
-Stripe-Signature: t=1234567890,v1=xxxxx
-```
+### `POST /api/webhooks/lemon-squeezy`
+Handles `order_created`, `subscription_cancelled`, `subscription_payment_success`,
+`subscription_payment_failed` (from the `meta.event_name` field).
 
-**Handled Events**:
-- `charge.succeeded` - Grant access for one-time purchases
-- `charge.refunded` - Revoke access (manual handling)
-- `customer.subscription.created` - Grant access for subscriptions
-- `customer.subscription.deleted` - Revoke access
-- `invoice.payment_succeeded` - Log renewal
-- `invoice.payment_failed` - Alert admin
+### `POST /api/webhooks/paddle`
+Handles `payment_succeeded` / `subscription_payment_succeeded`, `subscription_cancelled`,
+`subscription_payment_failed`, `payment_refunded`.
 
-**Response** (200 OK):
-```json
-{
-  "received": true
-}
-```
-
-**Error Response** (400 Bad Request):
-```json
-{
-  "error": "Invalid signature"
-}
-```
+### `POST /api/webhooks/gumroad`
+Gumroad sends a form-encoded "ping" rather than a signed JSON event; the handler reads the
+`refunded` field directly to decide whether to revoke access.
 
 ## Error Responses
 
-### Standard Error Format
+There's no single standardized error envelope across every route — most return
+`{ "error": "<message>" }` with an appropriate HTTP status, and validation failures return
+`{ "error": "Invalid request", "details": [...] }` where `details` is a Zod `issues` array.
 
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid request parameters",
-    "details": [
-      {
-        "field": "email",
-        "message": "Invalid email format"
-      }
-    ]
-  }
-}
-```
-
-### Error Codes
-
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `VALIDATION_ERROR` | 400 | Invalid request parameters |
-| `UNAUTHORIZED` | 401 | Missing or invalid authentication |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `CONFLICT` | 409 | Resource already exists |
-| `RATE_LIMITED` | 429 | Too many requests |
-| `INTERNAL_ERROR` | 500 | Server error |
-| `SERVICE_UNAVAILABLE` | 503 | Service temporarily unavailable |
-
-## Pagination
-
-All list endpoints support cursor-based pagination:
-
-**Request**:
-```http
-GET /api/dashboard/customers?page=2&limit=20
-```
-
-**Response**:
-```json
-{
-  "data": [...],
-  "pagination": {
-    "page": 2,
-    "limit": 20,
-    "total": 100,
-    "totalPages": 5,
-    "hasNext": true,
-    "hasPrevious": true
-  }
-}
-```
+Common status codes: `400` (validation), `401` (no/invalid session), `404` (not found or not
+owned by the caller), `429` (rate limited), `500` (unhandled error).
 
 ## Testing
 
 ### Stripe Test Mode
-
-Use Stripe test mode credentials in development and staging.
 
 **Test Cards**:
 - Success: `4242 4242 4242 4242`
@@ -587,13 +247,13 @@ Use Stripe test mode credentials in development and staging.
 
 ### Webhook Testing
 
-Use Stripe CLI for local webhook testing:
-
 ```bash
 stripe listen --forward-to localhost:4321/api/webhooks/stripe
 ```
 
+Other providers don't have an equivalent local CLI in this repo — test their webhooks against a
+deployed URL using each provider's dashboard-based webhook testing tools.
+
 ---
 
-**Last Updated**: January 1, 2026
-**Version**: 1.0
+**Last Updated**: 2026-07-08

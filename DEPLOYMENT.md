@@ -1,485 +1,165 @@
 # Deployment Guide
 
-This guide covers deploying your Astro + React + Tailwind CSS application to various hosting platforms.
+RepoPass is an Astro app running in **server (SSR) mode** with the `@astrojs/node` adapter in
+`standalone` mode (see `astro.config.js`). It needs a running PostgreSQL database and a set of
+environment variables (see `.env.example`) — it is **not** a static site, so static hosts
+(GitHub Pages, plain S3, etc.) won't work without significant changes.
+
+There are two supported deployment paths:
+
+1. **AWS Lambda via SST** — the path this repo is actually configured for (`sst.config.ts`).
+2. **Any Node.js host** — using the built-in standalone server, no extra adapter needed.
+
+Deploying to Vercel or Netlify is possible but requires swapping `@astrojs/node` for their
+platform-specific Astro adapter (`@astrojs/vercel` / `@astrojs/netlify`) — that swap is not done
+in this repo today.
 
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
-- [Vercel](#vercel)
-- [Netlify](#netlify)
-- [Cloudflare Pages](#cloudflare-pages)
-- [GitHub Pages](#github-pages)
-- [AWS Amplify](#aws-amplify)
-- [Traditional Hosting](#traditional-hosting)
+- [AWS via SST (recommended)](#aws-via-sst-recommended)
+- [Any Node.js Host](#any-nodejs-host)
 - [Docker](#docker)
+- [Vercel / Netlify (requires adapter swap)](#vercel--netlify-requires-adapter-swap)
+- [Post-Deployment Checklist](#post-deployment-checklist)
+- [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
-Before deploying, make sure to:
+Before deploying:
 
-1. Update the `site` field in `astro.config.js` with your production URL
-2. Update `robots.txt` with your production sitemap URL
-3. Configure environment variables (copy `.env.example` to `.env`)
-4. Test your build locally: `npm run build && npm run preview`
+1. Provision a PostgreSQL database (Neon, RDS, Supabase, or self-hosted) and run migrations:
+   `npm run db:migrate`
+2. Set every variable from `.env.example` in your hosting platform (see
+   [docs/SETUP.md](./docs/SETUP.md) for what each one does)
+3. Update `SITE_URL` to your production URL, and update your GitHub OAuth App's
+   **Authorization callback URL** to `https://<your-domain>/api/auth/github/callback`
+4. Test the production build locally: `npm run build && npm run preview`
 
----
+## AWS via SST (recommended)
 
-## Vercel
-
-### Quick Deploy
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/yourrepo)
-
-### Manual Deployment
-
-1. Install Vercel CLI:
-   ```bash
-   npm install -g vercel
-   ```
-
-2. Deploy:
-   ```bash
-   vercel
-   ```
-
-3. Follow the prompts to configure your project
-
-### Configuration
-
-Vercel auto-detects Astro projects. No additional configuration needed.
-
-**Environment Variables:**
-- Add environment variables in the Vercel dashboard under Settings > Environment Variables
-- Make sure to set `SITE_URL` to your production URL
-
-**Build Settings (auto-detected):**
-- Build Command: `npm run build`
-- Output Directory: `dist`
-- Install Command: `npm install`
-
----
-
-## Netlify
-
-### Quick Deploy
-
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start)
-
-### Manual Deployment
-
-1. Install Netlify CLI:
-   ```bash
-   npm install -g netlify-cli
-   ```
-
-2. Build your project:
-   ```bash
-   npm run build
-   ```
-
-3. Deploy:
-   ```bash
-   netlify deploy --prod
-   ```
-
-### Configuration
-
-Create a `netlify.toml` file in your project root:
-
-```toml
-[build]
-  command = "npm run build"
-  publish = "dist"
-
-[[redirects]]
-  from = "/*"
-  to = "/404.html"
-  status = 404
-```
-
-**Environment Variables:**
-- Add environment variables in Netlify dashboard under Site settings > Environment variables
-- Set `SITE_URL` to your production URL
-
----
-
-## Cloudflare Pages
-
-### Deployment via Dashboard
-
-1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. Go to Pages > Create a project
-3. Connect your Git repository
-4. Configure build settings:
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-   - Environment variables: Add your variables
-
-### Deployment via Wrangler CLI
-
-1. Install Wrangler:
-   ```bash
-   npm install -g wrangler
-   ```
-
-2. Build and deploy:
-   ```bash
-   npm run build
-   wrangler pages deploy dist
-   ```
-
----
-
-## GitHub Pages
-
-### Prerequisites
-
-- Repository must be public (for free plan)
-- Enable GitHub Pages in repository settings
-
-### Using GitHub Actions
-
-Create `.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy to GitHub Pages
-
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-```
-
-**Update `astro.config.js`:**
-
-```javascript
-export default defineConfig({
-  site: 'https://yourusername.github.io',
-  base: '/your-repo-name', // Only if not using custom domain
-  // ... rest of config
-});
-```
-
----
-
-## AWS Amplify
-
-### Deployment via Console
-
-1. Log in to [AWS Amplify Console](https://console.aws.amazon.com/amplify/)
-2. Click "New app" > "Host web app"
-3. Connect your Git repository
-4. Configure build settings:
-
-```yaml
-version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - npm ci
-    build:
-      commands:
-        - npm run build
-  artifacts:
-    baseDirectory: dist
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
-```
-
-### Environment Variables
-
-Add in Amplify Console > App settings > Environment variables:
-- `SITE_URL`: Your production URL
-- Any other custom environment variables
-
----
-
-## Traditional Hosting
-
-For traditional hosting (cPanel, shared hosting, VPS):
-
-### 1. Build the Project Locally
+This repo ships with `sst.config.ts` (SST v3 / Ion), which deploys the Astro SSR app to AWS
+Lambda behind CloudFront, with secrets managed via `sst.Secret`.
 
 ```bash
+# One-time: set every secret referenced in sst.config.ts
+npx sst secret set DatabaseUrl "postgresql://..."
+npx sst secret set JwtSecret "$(openssl rand -base64 32)"
+npx sst secret set SessionSecret "$(openssl rand -base64 32)"
+npx sst secret set GitHubClientSecret "..."
+npx sst secret set GitHubPAT "..."
+npx sst secret set StripeSecretKey "..."
+npx sst secret set StripeWebhookSecret "..."
+npx sst secret set ResendApiKey "..."
+npx sst secret set AdminEmail "..."
+npx sst secret set PostHogApiKey "..."   # optional
+
+# Deploy
+npx sst deploy --stage production
+```
+
+`sst.config.ts` currently points at `repopass.io` for the production custom domain via Cloudflare
+DNS (`sst.cloudflare.dns()`) — update this to your own domain, or remove the `domain` block to
+deploy without one. See [TODO.md](./TODO.md) for the full secrets/setup checklist.
+
+## Any Node.js Host
+
+Because the adapter is `@astrojs/node` in `standalone` mode, the build output is a self-contained
+Node server — no platform-specific adapter required. This works on a VPS, Railway, Fly.io,
+Render, or similar:
+
+```bash
+npm ci
 npm run build
+node ./dist/server/entry.mjs
 ```
 
-### 2. Upload Files
-
-Upload the contents of the `dist/` directory to your web server:
-
-**Via FTP/SFTP:**
-- Upload all files from `dist/` to your `public_html` or `www` directory
-
-**Via SSH:**
-```bash
-scp -r dist/* user@yourserver.com:/path/to/webroot/
-```
-
-### 3. Configure Server
-
-**Apache (.htaccess):**
-
-Create `.htaccess` in your web root:
-
-```apache
-# Enable gzip compression
-<IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
-</IfModule>
-
-# Enable browser caching
-<IfModule mod_expires.c>
-  ExpiresActive On
-  ExpiresByType image/jpg "access plus 1 year"
-  ExpiresByType image/jpeg "access plus 1 year"
-  ExpiresByType image/png "access plus 1 year"
-  ExpiresByType image/svg+xml "access plus 1 year"
-  ExpiresByType text/css "access plus 1 month"
-  ExpiresByType application/javascript "access plus 1 month"
-</IfModule>
-
-# Custom 404 page
-ErrorDocument 404 /404.html
-```
-
-**Nginx:**
-
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
-    root /path/to/dist;
-    index index.html;
-
-    # Enable gzip
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-
-    # Cache static assets
-    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # Custom 404
-    error_page 404 /404.html;
-
-    # Fallback to index.html for client-side routing
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
----
+The server listens on `PORT` (default `4321`, matches `.env.example`). Put it behind a reverse
+proxy (nginx, Caddy) for TLS termination, and make sure the process manager (systemd, pm2) has
+every environment variable from `.env.example` set.
 
 ## Docker
 
-### Dockerfile
-
-Create a `Dockerfile` in your project root:
+There's no `Dockerfile` in this repo yet. A minimal one for the Node adapter:
 
 ```dockerfile
-# Build stage
-FROM node:20-alpine AS builder
-
+FROM node:22-alpine AS builder
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci
-
-# Copy source files
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
-
-# Copy built files
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+EXPOSE 4321
+CMD ["node", "./dist/server/entry.mjs"]
 ```
-
-### nginx.conf
-
-Create `nginx.conf`:
-
-```nginx
-events {
-    worker_connections 1024;
-}
-
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-
-    server {
-        listen 80;
-        server_name localhost;
-        root /usr/share/nginx/html;
-        index index.html;
-
-        gzip on;
-        gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
-
-        location / {
-            try_files $uri $uri/ /index.html;
-        }
-
-        error_page 404 /404.html;
-    }
-}
-```
-
-### Build and Run
 
 ```bash
-# Build the Docker image
-docker build -t astro-app .
-
-# Run the container
-docker run -p 8080:80 astro-app
+docker build -t repopass .
+docker run -p 4321:4321 --env-file .env repopass
 ```
 
-Visit `http://localhost:8080`
+You'll still need a reachable PostgreSQL instance — `docker-compose.yml` in this repo provides
+one for **local development only** (Postgres + MailDev); it is not a production deployment
+manifest.
 
-### Docker Compose
+## Vercel / Netlify (requires adapter swap)
 
-Create `docker-compose.yml`:
+Astro auto-detects some platforms, but only if the matching adapter is installed. To deploy here
+you would need to:
 
-```yaml
-version: '3.8'
+1. `npm install @astrojs/vercel` (or `@astrojs/netlify`)
+2. Swap the `adapter: node(...)` line in `astro.config.js` for the platform adapter
+3. Configure every `.env.example` variable in the platform's dashboard
+4. Provision PostgreSQL separately (Vercel/Netlify don't host a database) — Neon or Supabase work well
 
-services:
-  web:
-    build: .
-    ports:
-      - "8080:80"
-    environment:
-      - SITE_URL=https://yourdomain.com
-    restart: unless-stopped
-```
-
-Run with:
-```bash
-docker-compose up -d
-```
-
----
+This repo does not currently ship with either adapter installed, so treat this path as a starting
+point, not a "just works" deploy target.
 
 ## Post-Deployment Checklist
 
-After deploying to any platform:
-
-- [ ] Verify the site loads correctly
-- [ ] Test all routes and pages
-- [ ] Check responsive design on mobile devices
-- [ ] Verify meta tags and SEO (use tools like [Meta Tags](https://metatags.io/))
-- [ ] Test performance with [Lighthouse](https://developers.google.com/web/tools/lighthouse)
-- [ ] Verify sitemap.xml is accessible at `/sitemap-index.xml`
-- [ ] Check robots.txt is accessible at `/robots.txt`
-- [ ] Test custom 404 page
-- [ ] Verify environment variables are set correctly
-- [ ] Set up analytics (if configured)
-- [ ] Configure custom domain (if applicable)
-- [ ] Enable HTTPS/SSL
-- [ ] Set up monitoring/error tracking
-
----
+- [ ] Site loads and the marketing homepage renders
+- [ ] `npm run db:migrate` has been run against the production database
+- [ ] GitHub OAuth callback URL matches the production domain exactly
+- [ ] `stripe listen`-style webhook is replaced with a real webhook endpoint pointed at
+      `https://<your-domain>/api/webhooks/stripe` (and the equivalent for any other provider a
+      user connects) with the matching signing secret in your env
+- [ ] Test a real purchase end-to-end (test mode is fine) and confirm the GitHub collaborator is
+      added and the confirmation email arrives
+- [ ] `sitemap-index.xml` is reachable (from `@astrojs/sitemap`)
+- [ ] HTTPS is enforced
 
 ## Troubleshooting
 
-### Build Fails
+### Build fails
 
-1. Check Node.js version (should be 18 or higher):
-   ```bash
-   node --version
-   ```
+```bash
+node --version   # should be >=22.12 (see package.json "engines")
+rm -rf node_modules package-lock.json && npm install
+npx tsc --noEmit
+```
 
-2. Clear cache and reinstall:
-   ```bash
-   rm -rf node_modules package-lock.json
-   npm install
-   ```
+### 500 errors after deploy
 
-3. Check for TypeScript errors:
-   ```bash
-   npx tsc --noEmit
-   ```
+Almost always a missing/invalid environment variable — `src/lib/env.ts` validates the full set
+at startup with Zod and throws a descriptive error naming the missing key. Check your process
+logs for `Missing or invalid environment variables: ...`.
 
-### 404 Errors on Refresh
+### OAuth callback fails
 
-This usually means the server isn't configured for client-side routing. See the server configuration sections above.
-
-### Missing Environment Variables
-
-Make sure all environment variables from `.env.example` are configured in your hosting platform's dashboard.
-
-### Styles Not Loading
-
-Check that your build output includes CSS files in the `_astro` directory and that your server is serving static assets correctly.
+The GitHub OAuth App's **Authorization callback URL** must exactly match
+`{SITE_URL}/api/auth/github/callback`. A mismatch here is the most common cause of login failures
+after moving to a new domain.
 
 ---
 
 ## Need Help?
 
 - [Astro Deployment Docs](https://docs.astro.build/en/guides/deploy/)
-- [Vercel Support](https://vercel.com/support)
-- [Netlify Support](https://www.netlify.com/support/)
-- [Cloudflare Support](https://support.cloudflare.com/)
+- [SST Documentation](https://sst.dev/docs)
+- [Neon PostgreSQL](https://neon.tech/docs)

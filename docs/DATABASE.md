@@ -2,14 +2,17 @@
 
 ## Overview
 
-RepoPass uses PostgreSQL as its primary database. This document describes the complete schema, relationships, and migration strategy.
+RepoPass uses PostgreSQL. This document describes the actual current schema, taken from
+`src/db/schema.ts` and the applied migrations in `src/db/migrations/`.
 
 ## Database Technology
 
 - **DBMS**: PostgreSQL 15+
-- **ORM**: Drizzle ORM (preferred) or Prisma
-- **Hosting**: AWS RDS
-- **Backup**: Automated daily snapshots (30-day retention)
+- **ORM**: Drizzle ORM (`drizzle-orm` + `drizzle-kit`) — the only ORM used, there is no Prisma
+- **Hosting**: Neon (serverless Postgres) in the SST/AWS deployment path; a local Docker Postgres
+  container for development. Nothing in this repo assumes AWS RDS specifically.
+- **Backups**: whatever your Postgres host provides (e.g. Neon's backup/PITR features on paid
+  tiers) — RepoPass does not implement its own backup process
 
 ## Schema Diagram
 
@@ -17,31 +20,28 @@ RepoPass uses PostgreSQL as its primary database. This document describes the co
 ┌─────────────┐
 │    users    │
 └──────┬──────┘
-       │
        │ 1:N
-       │
 ┌──────▼────────────┐
 │   repositories    │
 └──────┬───────┬────┘
-       │       │
    1:N │       │ 1:N
-       │       │
-┌──────▼───┐ ┌▼──────────┐
-│ products │ │ purchases │
-└──────────┘ └────┬──────┘
-                  │
-                  │ 1:N
-                  │
-            ┌─────▼────────┐
-            │ access_logs  │
-            └──────────────┘
+┌──────▼───┐ ┌▼──────────┐       ┌──────────────────┐
+│ products │ │ purchases │──1:N─▶│   access_logs     │
+└──────────┘ └───────────┘       └──────────────────┘
+       ▲
+       │ 1:N
+┌──────┴────────────┐
+│  pricing_history   │ (also belongs to repositories, 1:N)
+└────────────────────┘
 ```
 
 ## Tables
 
 ### users
 
-Stores admin and creator accounts. MVP: Single user (Cory).
+Every GitHub account that has signed in. Each user owns their own repositories — there is no
+separate admin/creator distinction anymore (the `role` enum only has one value, `user`, kept for
+schema-evolution headroom rather than active use).
 
 ```sql
 CREATE TABLE users (
@@ -50,66 +50,72 @@ CREATE TABLE users (
   github_oauth_id VARCHAR(255) UNIQUE,
   github_username VARCHAR(255),
   github_avatar_url TEXT,
-  stripe_account_id VARCHAR(255), -- For future multi-tenant
-  role VARCHAR(50) NOT NULL DEFAULT 'admin', -- 'admin', 'creator', 'none'
-  is_admin BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+  github_personal_access_token TEXT,       -- encrypted; the OAuth token, or a manual override
+  role role NOT NULL DEFAULT 'user',        -- enum currently has only 'user'
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_github_oauth_id ON users(github_oauth_id);
+  -- Payment provider settings (values encrypted at the application layer, see src/lib/crypto.ts)
+  payment_provider payment_provider,        -- 'stripe' | 'lemon_squeezy' | 'gumroad' | 'paddle'
+  stripe_secret_key TEXT,
+  stripe_publishable_key TEXT,
+  lemon_squeezy_api_key TEXT,
+  lemon_squeezy_store_id VARCHAR(255),
+  gumroad_access_token TEXT,
+  paddle_vendor_id VARCHAR(255),
+  paddle_api_key TEXT,
+
+  email_notifications BOOLEAN NOT NULL DEFAULT true,  -- opt-out for non-critical emails
+
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 ```
 
-**Constraints**:
-- Email must be valid format
-- At least one admin user must exist
+There is **no `is_admin` or `stripe_account_id` column** — those existed in the original
+single-tenant design and were dropped in migration `0002_violet_butterfly.sql` when the app
+moved to self-serve, per-user payment provider credentials.
 
 ### repositories
 
-Registered repositories available for purchase.
+Registered repositories available for purchase, owned by a user.
 
 ```sql
 CREATE TABLE repositories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  github_owner VARCHAR(255) NOT NULL, -- e.g., "ctrimm"
-  github_repo_name VARCHAR(255) NOT NULL, -- e.g., "premium-theme"
-  slug VARCHAR(255) UNIQUE NOT NULL, -- URL-friendly identifier
+  github_owner VARCHAR(255) NOT NULL,
+  github_repo_name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) UNIQUE NOT NULL,
   display_name VARCHAR(255) NOT NULL,
   description TEXT,
   cover_image_url TEXT,
-  pricing_type VARCHAR(50) NOT NULL, -- 'one-time', 'subscription'
-  price_cents INTEGER NOT NULL CHECK (price_cents >= 0),
-  subscription_cadence VARCHAR(50), -- 'monthly', 'yearly', 'custom'
-  custom_cadence_days INTEGER, -- For custom subscription periods
+  pricing_type pricing_type NOT NULL,        -- 'one-time' | 'subscription' | 'free'
+  price_cents INTEGER NOT NULL DEFAULT 0 CHECK (price_cents >= 0),
+  subscription_cadence subscription_cadence, -- 'monthly' | 'yearly' | 'custom'
+  custom_cadence_days INTEGER,
   active BOOLEAN NOT NULL DEFAULT true,
+  require_email_for_free BOOLEAN NOT NULL DEFAULT false, -- for free repos: also collect email?
+
+  payment_provider payment_provider,          -- null for free repos
+  external_product_id VARCHAR(255),           -- product ID in the connected provider
+  external_price_id VARCHAR(255),             -- price ID in the connected provider
+
   github_stars INTEGER DEFAULT 0,
-  github_last_updated TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  github_last_updated TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
 
-  CONSTRAINT unique_github_repo UNIQUE (github_owner, github_repo_name),
-  CONSTRAINT valid_pricing_type CHECK (pricing_type IN ('one-time', 'subscription')),
-  CONSTRAINT valid_subscription CHECK (
-    (pricing_type = 'subscription' AND subscription_cadence IS NOT NULL) OR
-    (pricing_type = 'one-time' AND subscription_cadence IS NULL)
-  )
+  CONSTRAINT unique_github_repo UNIQUE (github_owner, github_repo_name)
 );
-
-CREATE INDEX idx_repositories_owner_id ON repositories(owner_id);
-CREATE INDEX idx_repositories_slug ON repositories(slug);
-CREATE INDEX idx_repositories_active ON repositories(active);
 ```
 
-**Constraints**:
-- `price_cents` must be >= 0
-- If `pricing_type` is 'subscription', `subscription_cadence` is required
-- `slug` must be unique and URL-safe
+`pricing_type = 'free'` is a real, shipped option — not just one-time/subscription.
 
 ### products
 
-Maps repositories to Stripe products.
+Maps a repository to its product/price IDs with whichever provider is connected. Despite the
+column names (`stripe_product_id`/`stripe_price_id`, left over from the Stripe-only original
+design), these are populated with the connected provider's IDs regardless of which provider it
+is — column names were not renamed when multi-provider support was added.
 
 ```sql
 CREATE TABLE products (
@@ -117,15 +123,12 @@ CREATE TABLE products (
   repository_id UUID NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
   stripe_product_id VARCHAR(255) UNIQUE NOT NULL,
   stripe_price_id VARCHAR(255) UNIQUE NOT NULL,
-  price_tier VARCHAR(100) DEFAULT 'standard', -- For future multi-variant
+  price_tier VARCHAR(100) DEFAULT 'standard',
   is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMPTZ DEFAULT now(),
 
   CONSTRAINT unique_repo_tier UNIQUE (repository_id, price_tier)
 );
-
-CREATE INDEX idx_products_repository_id ON products(repository_id);
-CREATE INDEX idx_products_stripe_product_id ON products(stripe_product_id);
 ```
 
 ### purchases
@@ -142,217 +145,105 @@ CREATE TABLE purchases (
   stripe_customer_id VARCHAR(255),
   email VARCHAR(255) NOT NULL,
   github_username VARCHAR(255) NOT NULL,
-  purchase_type VARCHAR(50) NOT NULL, -- 'one-time', 'subscription'
+  purchase_type purchase_type NOT NULL,      -- 'one-time' | 'subscription'
   amount_cents INTEGER NOT NULL,
-  status VARCHAR(50) NOT NULL DEFAULT 'pending', -- 'pending', 'completed', 'failed', 'canceled'
-  access_status VARCHAR(50) NOT NULL DEFAULT 'pending', -- 'pending', 'active', 'revoked'
+  status purchase_status NOT NULL DEFAULT 'pending',       -- 'pending'|'completed'|'failed'|'canceled'
+  access_status access_status NOT NULL DEFAULT 'pending',  -- 'pending'|'active'|'revoked'
   revocation_reason TEXT,
   revoked_by UUID REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  access_granted_at TIMESTAMP WITH TIME ZONE,
-  revoked_at TIMESTAMP WITH TIME ZONE,
-
-  CONSTRAINT valid_purchase_type CHECK (purchase_type IN ('one-time', 'subscription')),
-  CONSTRAINT valid_status CHECK (status IN ('pending', 'completed', 'failed', 'canceled')),
-  CONSTRAINT valid_access_status CHECK (access_status IN ('pending', 'active', 'revoked')),
-  CONSTRAINT subscription_has_id CHECK (
-    (purchase_type = 'subscription' AND stripe_subscription_id IS NOT NULL) OR
-    (purchase_type = 'one-time')
-  )
+  created_at TIMESTAMPTZ DEFAULT now(),
+  access_granted_at TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ
 );
-
-CREATE INDEX idx_purchases_repository_id ON purchases(repository_id);
-CREATE INDEX idx_purchases_email ON purchases(email);
-CREATE INDEX idx_purchases_github_username ON purchases(github_username);
-CREATE INDEX idx_purchases_stripe_customer_id ON purchases(stripe_customer_id);
-CREATE INDEX idx_purchases_stripe_subscription_id ON purchases(stripe_subscription_id);
-CREATE INDEX idx_purchases_access_status ON purchases(access_status);
-CREATE INDEX idx_purchases_created_at ON purchases(created_at DESC);
 ```
 
 ### access_logs
 
-Audit trail for all access-related operations.
+Audit trail for collaborator add/remove and email-send events.
 
 ```sql
 CREATE TABLE access_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   purchase_id UUID NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
-  action VARCHAR(100) NOT NULL, -- 'collaborator_added', 'collaborator_removed', 'email_sent_confirmation', 'email_sent_access_granted', 'email_sent_revocation'
-  status VARCHAR(50) NOT NULL, -- 'success', 'failed', 'retry'
+  action access_log_action NOT NULL,   -- 'collaborator_added' | 'collaborator_removed' |
+                                        -- 'email_sent_confirmation' | 'email_sent_access_granted' |
+                                        -- 'email_sent_revocation' | 'email_sent_renewal' | 'payment_failed'
+  status access_log_status NOT NULL,   -- 'success' | 'failed' | 'retry'
   error_message TEXT,
-  metadata JSONB, -- Additional context (GitHub response, email ID, etc.)
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-
-  CONSTRAINT valid_action CHECK (action IN (
-    'collaborator_added',
-    'collaborator_removed',
-    'email_sent_confirmation',
-    'email_sent_access_granted',
-    'email_sent_revocation',
-    'email_sent_renewal',
-    'payment_failed'
-  )),
-  CONSTRAINT valid_log_status CHECK (status IN ('success', 'failed', 'retry'))
+  metadata TEXT,                       -- JSON string, not a native jsonb column
+  created_at TIMESTAMPTZ DEFAULT now()
 );
-
-CREATE INDEX idx_access_logs_purchase_id ON access_logs(purchase_id);
-CREATE INDEX idx_access_logs_action ON access_logs(action);
-CREATE INDEX idx_access_logs_status ON access_logs(status);
-CREATE INDEX idx_access_logs_created_at ON access_logs(created_at DESC);
 ```
 
 ### pricing_history
 
-Track pricing changes for grandfathering logic.
+Tracks pricing changes for grandfathering. A new row is inserted whenever a repository is
+created or its price changes; the prior row's `effective_until` is set at that point.
 
 ```sql
 CREATE TABLE pricing_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   repository_id UUID NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
   price_cents INTEGER NOT NULL,
-  pricing_type VARCHAR(50) NOT NULL,
-  subscription_cadence VARCHAR(50),
+  pricing_type pricing_type NOT NULL,
+  subscription_cadence subscription_cadence,
   changed_by UUID REFERENCES users(id),
-  effective_from TIMESTAMP WITH TIME ZONE NOT NULL,
-  effective_until TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  effective_from TIMESTAMPTZ NOT NULL,
+  effective_until TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
 );
-
-CREATE INDEX idx_pricing_history_repository_id ON pricing_history(repository_id);
-CREATE INDEX idx_pricing_history_effective_from ON pricing_history(effective_from DESC);
 ```
 
-## Views
+## Indexes and Views
 
-### Active Subscriptions View
+**None of the migrations create any secondary indexes or database views.** Every table only has
+the indexes Postgres creates automatically for its primary key and `UNIQUE`/foreign-key
+constraints. There is no `revenue_summary` or `active_subscriptions` view, and no `idx_*` indexes
+on `purchases.email`, `purchases.github_username`, `access_logs.purchase_id`, etc.
 
-```sql
-CREATE VIEW active_subscriptions AS
-SELECT
-  p.id,
-  p.email,
-  p.github_username,
-  r.display_name AS repository_name,
-  r.github_owner,
-  r.github_repo_name,
-  p.amount_cents,
-  p.access_granted_at,
-  p.created_at
-FROM purchases p
-JOIN repositories r ON p.repository_id = r.id
-WHERE
-  p.purchase_type = 'subscription'
-  AND p.access_status = 'active'
-  AND p.status = 'completed';
-```
-
-### Revenue Summary View
-
-```sql
-CREATE VIEW revenue_summary AS
-SELECT
-  r.id AS repository_id,
-  r.display_name AS repository_name,
-  COUNT(DISTINCT p.id) AS total_purchases,
-  COUNT(DISTINCT CASE WHEN p.purchase_type = 'subscription' AND p.access_status = 'active' THEN p.id END) AS active_subscriptions,
-  SUM(p.amount_cents) AS total_revenue_cents,
-  SUM(CASE WHEN p.created_at >= NOW() - INTERVAL '30 days' THEN p.amount_cents ELSE 0 END) AS revenue_30d_cents,
-  MAX(p.created_at) AS last_purchase_at
-FROM repositories r
-LEFT JOIN purchases p ON r.id = p.repository_id AND p.status = 'completed'
-GROUP BY r.id, r.display_name;
-```
+This is fine at current scale (queries go through Drizzle with indexed foreign keys/uniques for
+the lookups that matter most), but if `purchases`/`access_logs` grow large, adding indexes on the
+frequently-filtered columns (`purchases.access_status`, `purchases.created_at`,
+`access_logs.purchase_id`) would be a reasonable follow-up — via a new Drizzle migration, not by
+hand-editing existing migration files.
 
 ## Migrations
 
-### Migration Strategy
-
-- **Tool**: Drizzle Kit or Prisma Migrate
-- **Versioning**: Sequential numbering (001, 002, etc.)
-- **Rollback**: Down migrations for each up migration
-- **Testing**: Test migrations on staging before production
-
-### Initial Migration (001_initial_schema.sql)
-
-Create all tables, indexes, and constraints as defined above.
-
-### Example Migration Commands
+**Tool**: Drizzle Kit. Generate a migration after changing `src/db/schema.ts`:
 
 ```bash
-# Using Drizzle Kit
-npx drizzle-kit generate:pg
-npx drizzle-kit push:pg
-
-# Using Prisma
-npx prisma migrate dev --name initial_schema
-npx prisma migrate deploy
+npm run db:generate   # drizzle-kit generate — diffs schema.ts against existing migrations
+npm run db:migrate    # tsx src/db/migrate.ts — applies pending migrations
+npm run db:push       # drizzle-kit push — push schema directly without a migration file (dev only)
 ```
+
+(Older versions of this doc referenced `drizzle-kit generate:pg`/`push:pg` — those subcommands
+were removed from drizzle-kit several versions ago; the scripts above are current.)
+
+Applied migrations, in order:
+1. `0000_skinny_miss_america` — initial schema
+2. `0001_massive_spacker_dave`
+3. `0002_violet_butterfly` — multi-tenant pivot: drops `is_admin`/`stripe_account_id`, collapses
+   `role` to just `'user'`, renames `github_access_token` → `github_personal_access_token`, adds
+   the payment-provider columns and the `free` pricing type
+4. `0003_payment_providers` — a no-op today (see the file's comment); it originally duplicated
+   0002's changes and would fail on a clean database, so it was neutralized rather than deleted
+   to keep the migration sequence intact
+5. `0004_free_repo_email_requirement` — adds `require_email_for_free`
 
 ## Seeding
 
-### Development Seed Data
+`npm run db:seed` (`src/db/seed.ts`) creates one user (email from `ADMIN_EMAIL`/`AdminEmail`
+secret, falling back to `cory@example.com`) and one sample repository (`premium-astro-theme`,
+$49 one-time). It's meant for local development, not a description of required production data —
+in production, real users create their own accounts via GitHub OAuth.
 
-```sql
--- Insert admin user (Cory)
-INSERT INTO users (email, github_username, role, is_admin)
-VALUES ('cory@example.com', 'ctrimm', 'admin', true);
+## Performance
 
--- Insert test repository
-INSERT INTO repositories (
-  owner_id,
-  github_owner,
-  github_repo_name,
-  slug,
-  display_name,
-  description,
-  pricing_type,
-  price_cents
-) VALUES (
-  (SELECT id FROM users WHERE email = 'cory@example.com'),
-  'ctrimm',
-  'premium-astro-theme',
-  'premium-astro-theme',
-  'Premium Astro Theme',
-  'A beautiful, production-ready Astro theme',
-  'one-time',
-  4900
-);
-```
-
-## Performance Optimization
-
-### Indexes
-
-All foreign keys have indexes.
-Frequently queried columns (email, github_username, created_at) are indexed.
-
-### Query Optimization
-
-- Use prepared statements
-- Implement pagination for large result sets
-- Use database connection pooling
-- Cache frequently accessed data in Redis
-
-## Backup and Recovery
-
-### Automated Backups
-
-- **Frequency**: Daily at 2 AM UTC
-- **Retention**: 30 days
-- **Location**: AWS RDS automated snapshots
-
-### Point-in-Time Recovery
-
-RDS provides PITR up to the last 5 minutes.
-
-### Manual Backup
-
-```bash
-pg_dump -h <rds-endpoint> -U <username> -d repopass > backup.sql
-```
+- Use pagination for large result sets (the customers/repositories list queries don't currently
+  paginate — they return every row for the current user)
+- Connection pooling is handled by the `postgres` npm package's built-in pool
 
 ---
 
-**Last Updated**: January 1, 2026
-**Version**: 1.0
+**Last Updated**: 2026-07-08

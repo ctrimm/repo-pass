@@ -1,12 +1,22 @@
 # RepoPass - Product Requirements Document
 
+> **Status update (2026-07-08):** This PRD is a point-in-time planning document from
+> December 2025 — treat the sections below as the original plan, not a live description of the
+> app. The most significant divergence: the "Phase 2: Multi-Tenant" work described in §12 has
+> **already shipped** — any GitHub account can sign in and manage its own repositories today
+> (see `docs/ARCHITECTURE.md`), well ahead of the single-tenant MVP this PRD scoped. Multi-provider
+> payments (Stripe, Lemon Squeezy, Gumroad, Paddle — §6.1 only planned Stripe) have also shipped.
+> GitLab support (§3, §12 Phase 3) has not. For what's actually implemented, see `README.md` and
+> `docs/ARCHITECTURE.md`; treat this file as historical context for *why* things were designed
+> this way, not as current-state documentation.
+
 ## 1. Executive Summary
 
 **RepoPass** is a SaaS platform that enables creators to monetize access to GitHub and GitLab repositories. Users can set up a simple payment flow via Stripe (one-time or subscription) and automatically grant purchasers access to private repositories. The purchaser provides their username, pays, and receives lifetime (or subscription-based) access to fork/clone the repository.
 
-**MVP Status**: Single-tenant (Cory's instance), with architecture designed to support multi-tenancy in future releases.
+**MVP Status**: Single-tenant (Cory's instance), with architecture designed to support multi-tenancy in future releases. *(Superseded — see status update above.)*
 
-**Tech Stack**: NextJS, React, Tailwind CSS, SST, AWS (built on existing astro-react-shad-tailwind-template-repo)
+**Tech Stack (as planned here)**: NextJS, React, Tailwind CSS, SST, AWS. *(What was actually built: Astro — not Next.js — + React + Tailwind CSS, Drizzle ORM/PostgreSQL, deployable via SST to AWS Lambda or as a standalone Node server. See `README.md` for the real stack.)*
 
 ---
 

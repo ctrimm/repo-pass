@@ -4,9 +4,9 @@ This guide will get you up and running with RepoPass locally in **under 10 minut
 
 ## Prerequisites
 
-- **Node.js 18+** - [Download here](https://nodejs.org/)
+- **Node.js 22.12+** (see `engines` in `package.json`) - [Download here](https://nodejs.org/)
 - **Docker Desktop** - [Download here](https://www.docker.com/products/docker-desktop/) (for PostgreSQL database)
-- **GitHub account** - For OAuth and repository management
+- **GitHub account** - For OAuth login (any GitHub account works — there's no invite list)
 
 ## Step 1: Install Dependencies
 
@@ -63,6 +63,10 @@ If you want to use a PAT instead:
 
 <details>
 <summary><strong>Stripe Setup (Required for Payments)</strong></summary>
+
+The `.env` Stripe keys below are the platform-level config (used for webhook signature
+verification). **Any signed-in user can also connect their own Stripe, Lemon Squeezy, Gumroad,
+or Paddle account** from `/dashboard/settings` to sell under their own account instead.
 
 1. Sign up at https://stripe.com
 2. Go to https://dashboard.stripe.com/test/apikeys

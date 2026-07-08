@@ -1,8 +1,14 @@
 # Security Audit Report - RepoPass Multi-Tenant Application
 
-**Date:** 2026-01-04
+**Date:** 2026-01-04 (updated 2026-07-08 — see status notes below)
 **Auditor:** Claude
 **Scope:** Multi-tenancy, Data Storage, Access Control
+
+> **Update (2026-07-08):** The two items originally marked CRITICAL/LOW below —
+> unencrypted secrets and missing checkout rate limiting — have since been fixed
+> and are called out inline. The rest of this report (multi-tenancy isolation,
+> session management, SQL injection protection) still reflects the current
+> codebase.
 
 ---
 
@@ -33,54 +39,30 @@ All dashboard pages filter by ownership:
 
 ---
 
-## ⚠️ CRITICAL - Sensitive Data Storage
+## ✅ RESOLVED - Sensitive Data Storage
 
-### Issue: Unencrypted API Keys in Database
+### Issue: Unencrypted API Keys in Database (FIXED)
 
-**Severity:** CRITICAL
+**Original Severity:** CRITICAL
 **Location:** `src/db/schema.ts` - users table
 
-**Problem:**
-All payment provider API keys and GitHub tokens are stored as **plain text** in the database:
+**Status:** Fixed. All payment provider API keys and the GitHub personal access
+token are now encrypted at the application layer via `src/lib/crypto.ts` before
+being written to the `users` table, and decrypted on read:
 
 ```typescript
-// CURRENTLY INSECURE - Plain text storage
-githubPersonalAccessToken: text('github_personal_access_token'),
-stripeSecretKey: text('stripe_secret_key'),
-stripePublishableKey: text('stripe_publishable_key'),
-lemonSqueezyApiKey: text('lemon_squeezy_api_key'),
-gumroadAccessToken: text('gumroad_access_token'),
-paddleApiKey: text('paddle_api_key'),
+// src/pages/api/dashboard/settings/github-pat.ts
+githubPersonalAccessToken: encrypt(githubPat),
+
+// src/pages/api/dashboard/settings/payment-provider.ts
+updateData.stripeSecretKey = encrypt(secretKey);
+updateData.lemonSqueezyApiKey = encrypt(apiKey);
+updateData.gumroadAccessToken = encrypt(accessToken);
+updateData.paddleApiKey = encrypt(apiKey);
 ```
 
-**Risk:**
-- Database breach exposes ALL user API keys
-- SQL injection could leak secrets
-- Backup files contain plain text secrets
-- Logs may inadvertently expose keys
-
-**Recommendation:**
-Implement encryption-at-rest for sensitive fields:
-
-```typescript
-// Option 1: Application-layer encryption (recommended)
-import { encrypt, decrypt } from './lib/crypto';
-
-// Before storing
-const encryptedKey = encrypt(stripeSecretKey);
-await db.update(users).set({ stripeSecretKey: encryptedKey });
-
-// When retrieving
-const decryptedKey = decrypt(user.stripeSecretKey);
-```
-
-```typescript
-// Option 2: Database-level encryption (Neon Postgres supports pgcrypto)
-// Use pgcrypto extension for column-level encryption
-stripeSecretKey: text('stripe_secret_key') // encrypted with pgcrypto
-```
-
-**Implementation Priority:** HIGH - Should be done before production deployment
+The columns themselves (`text` type) still store ciphertext, not plaintext — the
+schema comment "encrypted in application layer" reflects this.
 
 ---
 
@@ -120,32 +102,21 @@ email: varchar('email', { length: 255 }).notNull(),
 
 ---
 
-## ⚠️ LOW - Rate Limiting
+## ✅ RESOLVED - Rate Limiting
 
-### Issue: No Rate Limiting on Checkout
+### Issue: No Rate Limiting on Checkout (FIXED)
 
-**Severity:** LOW
-**Location:** `/api/checkout.ts`
+**Original Severity:** LOW
+**Location:** `/api/checkout.ts`, `/api/free-access.ts`
 
-**Problem:**
-No rate limiting on checkout endpoint could allow:
-- Spam purchases
-- Database DoS
-- Email flooding
+**Status:** Fixed. Both endpoints call `checkRateLimit()` from
+`src/lib/rate-limit.ts`, capping requests at 5/minute per client and returning
+`429` with `Retry-After`/`X-RateLimit-*` headers when exceeded.
 
-**Recommendation:**
-```typescript
-import { rateLimiter } from '../../lib/rate-limit';
-
-export const POST: APIRoute = async ({ request, clientAddress }) => {
-  // Add rate limiting
-  const limited = await rateLimiter.check(clientAddress, 'checkout', 5, 60000); // 5 per minute
-  if (limited) {
-    return new Response('Too many requests', { status: 429 });
-  }
-  // ... rest of handler
-};
-```
+**Note:** the limiter is an in-memory, per-process `Map` (see
+`src/lib/rate-limit.ts`) — it resets on redeploy and isn't shared across
+multiple server instances. That's an accepted MVP trade-off, not a bug, but
+worth knowing if this is deployed behind a multi-instance/multi-Lambda setup.
 
 ---
 
@@ -193,9 +164,10 @@ Users are asked to provide a GitHub PAT which may have broader permissions than 
 
 ### Immediate (Before Production)
 1. ✅ **DONE** - Add ownership verification to all API endpoints
-2. ⚠️ **TODO** - Encrypt API keys and tokens in database
-3. ⚠️ **TODO** - Implement rate limiting on public endpoints
-4. ⚠️ **TODO** - Add GDPR compliance features
+2. ✅ **DONE** - Encrypt API keys and tokens in database
+3. ✅ **DONE** - Implement rate limiting on public endpoints
+4. ⚠️ **TODO** - Add GDPR compliance features (right-to-erasure/export endpoints; an
+   `email_notifications` opt-out column exists on `users`, but no data export/delete flow yet)
 
 ### Short-term (Within 1-2 sprints)
 1. Hash/encrypt customer emails
@@ -213,17 +185,20 @@ Users are asked to provide a GitHub PAT which may have broader permissions than 
 
 ## Summary
 
-**Overall Security Grade:** B (Good with critical fixes needed)
+**Overall Security Grade:** B+ (previous critical/low findings resolved; medium items remain)
 
 **Strengths:**
 - ✅ Excellent multi-tenant isolation
 - ✅ Proper ownership verification on all endpoints
 - ✅ SQL injection protection via ORM
 - ✅ Secure session management
+- ✅ Secrets encrypted at rest (payment provider keys, GitHub tokens)
+- ✅ Rate limiting on checkout and free-access endpoints
 
-**Critical Gaps:**
-- ⚠️ Unencrypted API keys in database (MUST FIX)
-- ⚠️ No rate limiting on public endpoints
-- ⚠️ Plain text email storage
+**Remaining Gaps (Medium/Low):**
+- ⚠️ Plain text email storage in `purchases` table
+- ⚠️ No GDPR data export/erasure endpoints
+- ⚠️ GitHub PAT/OAuth scope is broader (`repo`) than strictly required for read-only collaborator management
 
-**Recommendation:** Address encryption of sensitive data before production launch. All other issues are manageable post-launch but should be prioritized.
+**Recommendation:** The must-fix items from the original audit are done. The remaining items are
+reasonable to prioritize post-launch.

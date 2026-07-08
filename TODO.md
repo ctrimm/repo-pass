@@ -12,8 +12,10 @@
 - [ ] Copy Client ID → Add to `.env` as `GITHUB_CLIENT_ID`
 - [ ] Generate Client Secret → Add to `.env` as `GITHUB_CLIENT_SECRET`
 
-### 2. GitHub Personal Access Token (PAT)
-**Why?** The OAuth token is for your login. The PAT is for the service to add collaborators to your repos.
+### 2. GitHub Personal Access Token (PAT) — Fallback Only
+**Why?** Each signed-in user's own OAuth token (requested with `repo` scope at login) is what
+normally adds/removes collaborators on their repos. This global PAT is only a fallback used if a
+user's stored token is missing or fails to decrypt — mainly useful for local dev/seeding.
 
 - [ ] Go to https://github.com/settings/tokens
 - [ ] Click "Generate new token" → "Generate new token (classic)"
@@ -25,7 +27,14 @@
 
 **⚠️ Important**: Save this token securely! You can't see it again.
 
-### 3. Stripe Setup
+### 3. Payment Provider Setup
+
+RepoPass supports four payment providers. The `.env` Stripe keys below are the
+platform-level fallback/webhook config; **each signed-in user can additionally
+connect their own provider credentials from `/dashboard/settings`** to sell
+under their own account — Stripe, Lemon Squeezy, Gumroad, or Paddle.
+
+**Stripe** (the provider `.env` and the local webhook forwarding below are set up for):
 - [ ] Sign up at https://stripe.com (if you haven't)
 - [ ] Go to https://dashboard.stripe.com/test/apikeys
 - [ ] Copy "Publishable key" → Add to `.env` as `STRIPE_PUBLISHABLE_KEY`
@@ -34,6 +43,13 @@
 - [ ] Login: `stripe login`
 - [ ] Forward webhooks: `stripe listen --forward-to localhost:4321/api/webhooks/stripe`
 - [ ] Copy webhook secret → Add to `.env` as `STRIPE_WEBHOOK_SECRET`
+
+**Lemon Squeezy / Gumroad / Paddle** (optional, no `.env` setup needed):
+- [ ] Create an account with the provider
+- [ ] Generate an API key (Lemon Squeezy, Gumroad) or vendor ID + API key (Paddle)
+- [ ] Add credentials from `/dashboard/settings` → "Payment Provider" after logging in
+- [ ] Webhook endpoints already exist at `/api/webhooks/lemon-squeezy`, `/api/webhooks/gumroad`,
+      and `/api/webhooks/paddle` — point the provider's webhook config at your deployed URL
 
 ### 4. Resend Email Setup
 - [ ] Sign up at https://resend.com
@@ -119,7 +135,8 @@ Deploy RepoPass as a **fully serverless** application using external services + 
 - [x] Update `src/lib/sst.ts` for external services
 - [x] Integrate all database files (`src/db/*.ts`) with SST helpers
 - [x] Add `AdminEmail` secret to SST config
-- [x] Remove unused Redis code (not needed for MVP)
+- [x] Rate limiting uses an in-memory store (`src/lib/rate-limit.ts`), not Redis
+- [ ] Remove the unused `redis` entry from `package.json` (still listed as a dependency but nothing imports it)
 - [x] Configure domain to repopass.io
 - [x] Add rate limiting to /api/checkout endpoint (5 req/min)
 
@@ -199,105 +216,21 @@ npm run db:migrate        # Run migrations against prod
 
 ---
 
-## Revenue Model Implementation (Option C - Hybrid)
+## Future Idea: RepoPass Platform Fees (Not Implemented)
 
-### Overview
-Implement a hybrid revenue model for RepoPass platform fees:
-- **FREE**: First $100 in sales
-- **5% Platform Fee**: After $100, take 5% of each sale
-- **OR $15/mo Flat Fee**: Unlimited sales (sellers can opt-in)
+Today, every seller connects and is billed directly by their own payment provider (Stripe,
+Lemon Squeezy, Gumroad, or Paddle) — RepoPass itself doesn't take a cut and has no billing
+relationship with sellers. A previous draft of this doc sketched a hybrid platform-fee model
+(free under $100 in sales, then 5% or a $15/mo flat fee via Stripe Connect) — **none of that was
+built**: there's no `platform_fees`/`fee_transactions` table, no Stripe Connect integration, no
+fee-calculation code.
 
-### Cost Structure
-**Your Infrastructure Costs:**
-- Neon PostgreSQL: $0/mo (FREE tier)
-- AWS Lambda + CloudFront: $0-5/mo (within free tier for low traffic)
-- Domain: ~$12/yr (~$1/mo)
-- **Total**: ~$1-6/mo to run RepoPass
+If this is revisited, note that Stripe Connect's per-transaction application fee doesn't
+translate directly to Lemon Squeezy/Gumroad/Paddle — each provider would need its own
+equivalent (or the fee model would need to be Stripe-only). Treat this as an unstarted idea, not
+a plan in progress.
 
-**Breakeven Analysis:**
-- At 5% fee: Need $120 in gross sales/month = 2-3 sales at $49/each
-- At $15/mo subscription: Need 1 paying seller
-- **Goal**: Profitable after 3 total sales OR 1 subscriber
-
-### Implementation Plan
-
-#### Phase 1: Database Schema (Platform Fees)
-- [ ] Create `platform_fees` table:
-  ```sql
-  - seller_id (references users)
-  - stripe_account_id (Stripe Connect)
-  - plan_type (enum: 'free', 'percentage', 'flat')
-  - lifetime_revenue_cents (tracking for $100 threshold)
-  - current_period_start
-  - current_period_end
-  - status (active, canceled, etc.)
-  ```
-- [ ] Create `fee_transactions` table:
-  ```sql
-  - transaction_id
-  - seller_id
-  - purchase_id
-  - sale_amount_cents
-  - platform_fee_cents
-  - stripe_fee_cents
-  - seller_net_cents
-  - created_at
-  ```
-
-#### Phase 2: Stripe Connect Integration
-- [ ] Set up Stripe Connect for multi-seller payments
-- [ ] Implement "Connect with Stripe" flow for sellers
-- [ ] Store Stripe Connect account IDs
-- [ ] Configure application fee collection (5% or $0 based on plan)
-
-#### Phase 3: Fee Calculation Logic
-- [ ] Create `src/lib/platform-fees.ts`:
-  - [ ] Function to calculate platform fee based on seller's plan
-  - [ ] Function to check if seller exceeds $100 free tier
-  - [ ] Function to determine if seller should upgrade to paid plan
-- [ ] Update checkout flow to apply platform fees via Stripe Connect
-
-#### Phase 4: Seller Dashboard
-- [ ] Add "Revenue" tab to seller dashboard:
-  - [ ] Show lifetime revenue
-  - [ ] Show current plan (Free, 5% fee, or $15/mo)
-  - [ ] Show fee breakdown per transaction
-  - [ ] Button to upgrade to $15/mo flat plan
-- [ ] Add notification when approaching $100 free tier limit
-
-#### Phase 5: Subscription Billing
-- [ ] Create subscription product for $15/mo flat fee plan
-- [ ] Implement "Upgrade to Pro" checkout flow
-- [ ] Handle subscription renewal/cancellation
-- [ ] Automatically switch between percentage and flat fee based on subscription status
-
-#### Phase 6: Admin Analytics
-- [ ] Platform revenue dashboard for Cory:
-  - [ ] Total platform fees collected
-  - [ ] Breakdown by fee type (5% vs $15/mo)
-  - [ ] Number of active sellers by plan type
-  - [ ] MRR (Monthly Recurring Revenue) tracking
-
-### Pricing Strategy
-**For sellers using RepoPass:**
-| Seller's Sale Price | Stripe Fee (2.9% + $0.30) | Platform Fee (5%) | Seller Keeps |
-|---------------------|---------------------------|-------------------|--------------|
-| $49 | $1.72 | $2.45 | $44.83 (91.5%) |
-| $79 | $2.59 | $3.95 | $72.46 (91.7%) |
-| $99 | $3.17 | $4.95 | $90.88 (91.8%) |
-
-**Flat fee alternative:**
-- Seller pays $15/mo → Keeps 97% of sales (only Stripe fees)
-- Makes sense for sellers with >$300/mo in sales
-
-### Launch Checklist
-- [ ] Implement basic platform fee tracking (read-only)
-- [ ] Launch with FREE tier only (no fees initially)
-- [ ] Gather feedback from early adopters
-- [ ] Enable 5% fee after 10+ active sellers
-- [ ] Introduce $15/mo plan when sellers request it
-
-**Priority**: LOW (implement after initial launch and validation)
+**Priority**: LOW (revisit after validating demand for the current self-serve model)
 
 ## Notes
 
@@ -378,6 +311,23 @@ Implement a hybrid revenue model for RepoPass platform fees:
 - ✅ **Dashboard Improvements**
   - Fixed edit links to point to proper edit page
   - Improved navigation flow
+
+### Self-Serve Multi-Tenant Auth & Multi-Provider Payments
+- ✅ Any GitHub account can sign in and immediately owns/manages its own repositories and
+  customers — there's no separate admin allowlist or `ADMIN_EMAIL` gate on login
+  (`ADMIN_EMAIL` is only used as the address for operational failure alerts)
+- ✅ Sellers connect Stripe, Lemon Squeezy, Gumroad, or Paddle from `/dashboard/settings`
+  (`src/lib/payments/`) instead of being locked to a single global Stripe account
+- ✅ Free ($0) repositories with optional email capture (`requireEmailForFree`) via
+  `/api/free-access`
+
+### Dependency Upgrade (2026-07-08)
+- ✅ Upgraded all dependencies to latest majors (Astro 6→7, Zod 3→4, TypeScript 5→6, and more)
+- ✅ Fixed two broken database migrations (`0002_violet_butterfly.sql` enum/default ordering,
+  `0003_payment_providers.sql` duplicate schema changes) that made `npm run db:migrate` fail on
+  a fresh database
+- ✅ Fixed `db:generate`/`db:push` scripts, which referenced a drizzle-kit CLI syntax
+  (`generate:pg`/`push:pg`) removed several versions ago
 
 ---
 

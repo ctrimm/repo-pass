@@ -2,571 +2,201 @@
 
 ## Overview
 
-This document outlines security measures, compliance requirements, and best practices for RepoPass.
-
-## Security Architecture
-
-### Defense in Depth
-
-RepoPass implements multiple layers of security:
-
-1. **Network Layer**: CloudFront CDN, AWS WAF
-2. **Application Layer**: Input validation, authentication, authorization
-3. **Data Layer**: Encryption at rest and in transit
-4. **Access Layer**: Least-privilege IAM roles
+This document describes what RepoPass actually implements today, plus known gaps. It replaces an
+earlier version that described a lot of AWS infrastructure (RDS, ElastiCache, S3, WAF,
+CloudTrail, KMS rotation) that was never built — this app currently runs on Postgres + Node,
+optionally on AWS Lambda via SST, with no additional AWS services wired in.
 
 ## Authentication & Authorization
 
-### Admin Authentication
+### Login
 
-**Method**: GitHub OAuth 2.0
+**Method**: GitHub OAuth 2.0 — the only login method. There is no password login and no
+magic-link login.
 
-**Flow**:
-1. User clicks "Login with GitHub"
-2. Redirected to GitHub OAuth authorization
-3. User approves scopes: `read:user`, `user:email`
-4. GitHub redirects back with authorization code
-5. Backend exchanges code for access token
-6. Backend verifies user email matches `ADMIN_EMAIL`
-7. JWT token issued (30-day expiration)
-8. Token stored in HTTP-only cookie
+**Flow** (`src/pages/api/auth/github.ts` → `github/callback.ts`):
+1. User clicks "Sign in with GitHub" → `GET /api/auth/github`
+2. Redirected to GitHub's OAuth authorize page, requesting `repo read:user user:email` scope
+3. GitHub redirects back to `GET /api/auth/github/callback` with an authorization code
+4. Backend exchanges the code for an access token and fetches the user's profile/email
+5. A `users` row is created (first login) or updated (subsequent logins); the OAuth access token
+   is encrypted and stored as the user's GitHub credential
+6. A JWT session token is issued (30-day expiration) and set as an HTTP-only cookie
+7. Redirect to `/dashboard`
 
-**Security Measures**:
-- State parameter for CSRF protection
-- PKCE (Proof Key for Code Exchange) enabled
-- HTTP-only cookies (prevents XSS)
-- Secure flag (HTTPS-only)
-- SameSite=Strict (prevents CSRF)
+**What is NOT implemented**, despite being commonly expected for OAuth flows:
+- No `state` parameter / CSRF protection on the OAuth redirect
+- No PKCE
+- No email allowlist — **any GitHub account can sign in and immediately manage its own
+  repositories**; there is no admin-approval step
 
-### API Authentication
-
-**Method**: JWT (JSON Web Tokens)
-
-**Token Structure**:
-```json
-{
-  "sub": "user-uuid",
-  "email": "cory@example.com",
-  "role": "admin",
-  "iat": 1609459200,
-  "exp": 1612051200
-}
-```
-
-**Validation**:
-- Signature verification (HS256 algorithm)
-- Expiration check
-- Issuer verification
-- Role-based access control
-
-**Security Measures**:
-- Secret key stored in AWS Secrets Manager
-- Token rotation on password change
-- Automatic refresh before expiration
-- Revocation on logout
+If you need to restrict who can use a deployment, that would need to be added — today it's fully
+open self-serve signup.
 
 ### Session Management
 
-**Storage**: Redis (ElastiCache)
+**Storage**: Stateless JWT (HS256), **not** a server-side session store — there is no Redis/
+database-backed session table. The token itself, verified against `JWT_SECRET`, is the source of
+truth.
 
-**Session Data**:
-- User ID
-- Email
-- Role
-- Last activity timestamp
+**Token contents** (`src/lib/auth.ts`): `{ userId, email, iat, exp }` — no role/permissions claim
+(every authenticated user has the same capabilities over their own data).
 
-**Security Measures**:
-- 30-day expiration (auto-refresh on activity)
-- Secure session IDs (crypto.randomBytes)
-- Session invalidation on logout
-- Concurrent session limit: 3 devices
+**Cookie**: `repopass_session`, `httpOnly`, `sameSite: lax`, `secure` in production, 30-day
+`maxAge`.
+
+**Logout**: clears the cookie. Because the JWT itself isn't tracked server-side, a token that
+leaked before logout remains cryptographically valid until it expires — there's no revocation
+list. This is a standard trade-off of stateless JWTs, not a bug, but worth knowing if you need
+hard revocation.
 
 ## Data Security
 
 ### Encryption at Rest
 
-**Database (RDS)**:
-- AES-256 encryption enabled
-- Encrypted snapshots
-- Encrypted backups
+**What's actually encrypted**: payment provider credentials (Stripe/Lemon Squeezy/Gumroad/Paddle
+keys) and the GitHub token, via application-layer AES-256-GCM encryption
+(`src/lib/crypto.ts`), keyed off `ENCRYPTION_SECRET` (scrypt-derived). This was a real fix for a
+previously-flagged issue — see [`SECURITY_AUDIT.md`](../SECURITY_AUDIT.md).
 
-**File Storage (S3)**:
-- Server-side encryption (SSE-S3)
-- Bucket encryption enforced
-- Versioning enabled
+**What relies on the hosting platform**: whether the database itself is encrypted at rest
+depends on your Postgres provider (Neon encrypts by default; so does AWS RDS) — RepoPass doesn't
+configure this itself.
 
-**Secrets (AWS Secrets Manager)**:
-- Encrypted with AWS KMS
-- Automatic rotation (90 days)
-- Access logged in CloudTrail
-
-**Redis (ElastiCache)**:
-- Encryption at rest enabled
-- Auth token required
+**Not implemented**: KMS-based secret rotation, S3 (there's no file storage in this app —
+`coverImageUrl` is just a text URL field, not an upload pipeline).
 
 ### Encryption in Transit
 
-**Application**:
-- TLS 1.3 enforced
-- HTTP → HTTPS redirect
-- HSTS header enabled (max-age: 31536000)
-
-**API Calls**:
-- GitHub API: HTTPS only
-- Stripe API: HTTPS only
-- Email (SES): TLS enforced
-
-**Database Connections**:
-- SSL/TLS required
-- Certificate verification enabled
+TLS is provided by whatever's in front of the app (CloudFront if deployed via SST, or your own
+reverse proxy/load balancer on a Node host) — RepoPass itself doesn't terminate or configure TLS.
 
 ### Data Minimization
 
-**Collected Data**:
-- Email (required for order confirmation)
-- GitHub username (required for access grant)
-- Payment metadata (stored by Stripe, not RepoPass)
+**Collected**: email, GitHub username, and (for paid purchases) payment metadata forwarded by the
+provider (customer ID, payment intent/subscription ID — never card data).
 
-**Not Collected**:
-- Credit card details (handled by Stripe)
-- Passwords (OAuth only)
-- Personal identifiable information beyond email
-
-**Data Retention**:
-- Active purchases: Indefinite
-- Revoked purchases: 2 years (compliance)
-- Access logs: 1 year
-- Deleted users: 30-day grace period
+**Not collected**: passwords (OAuth only), card details (handled entirely by the connected
+provider).
 
 ## Input Validation
 
-### Server-Side Validation
-
-**All API Endpoints**:
-- Zod schema validation
-- Type checking
-- Length constraints
-- Format validation
-
-**Example (GitHub Username)**:
-```typescript
-const githubUsernameSchema = z.string()
-  .min(1)
-  .max(39)
-  .regex(/^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/);
-```
-
-**Example (Email)**:
-```typescript
-const emailSchema = z.string().email();
-```
-
-**Example (Repository Pricing)**:
-```typescript
-const pricingSchema = z.object({
-  pricingType: z.enum(['one-time', 'subscription']),
-  priceCents: z.number().int().min(100).max(1000000),
-  subscriptionCadence: z.enum(['monthly', 'yearly']).optional()
-});
-```
+All mutating API routes validate the request body with Zod (see `docs/API.md` for the actual
+schemas per route — for example `checkoutSchema` in `src/pages/api/checkout.ts` requires
+`repositoryId` as a UUID, `email` as an email, and `githubUsername` as 1-39 characters). There is
+no additional regex-based GitHub-username-format validation beyond the length check.
 
 ### SQL Injection Prevention
 
-**ORM**: Drizzle ORM with parameterized queries
-
-**Example**:
-```typescript
-// Safe (parameterized)
-db.select().from(users).where(eq(users.email, email));
-
-// Unsafe (NEVER do this)
-db.execute(`SELECT * FROM users WHERE email = '${email}'`);
-```
+All database access goes through Drizzle ORM's parameterized query builder — there is no raw SQL
+string interpolation in the application code (migrations are static `.sql` files, not
+user-influenced).
 
 ### XSS Prevention
 
-**Output Encoding**:
-- React escapes content by default
-- Sanitize HTML in descriptions (DOMPurify)
-- Content-Security-Policy header
-
-**CSP Header**:
-```
-Content-Security-Policy: default-src 'self'; script-src 'self' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.stripe.com;
-```
-
-### CSRF Protection
-
-**Measures**:
-- SameSite=Strict cookies
-- CSRF token validation (for forms)
-- Origin header verification
-
-**Token Generation**:
-```typescript
-const csrfToken = crypto.randomBytes(32).toString('hex');
-```
+React escapes rendered content by default. There is no explicit `Content-Security-Policy` header
+configured in this repo, and no DOMPurify sanitization call was found wired into the repository
+description rendering path, despite `isomorphic-dompurify` being listed as a dependency — treat
+CSP and output sanitization here as a gap, not a shipped mitigation, until verified otherwise for
+your deployment.
 
 ## API Security
 
 ### Rate Limiting
 
-**Implementation**: Redis-based token bucket
+**Implementation**: in-memory, per-process counter (`src/lib/rate-limit.ts`) — not Redis, not
+distributed.
 
-**Limits**:
-| Endpoint Type | Limit | Window |
-|---------------|-------|--------|
-| Public (unauthenticated) | 100 req | 1 hour |
-| Admin (authenticated) | 1000 req | 1 hour |
-| Checkout | 10 req | 1 hour (per IP) |
-| Webhooks | Unlimited | - |
+**Actual limits** (everything else is unlimited):
 
-**Response** (429 Too Many Requests):
-```json
-{
-  "error": {
-    "code": "RATE_LIMITED",
-    "message": "Too many requests. Try again in 3600 seconds.",
-    "retryAfter": 3600
-  }
-}
-```
+| Endpoint | Limit |
+|---|---|
+| `POST /api/checkout` | 5 requests / minute / client |
+| `POST /api/free-access` | 5 requests / minute / client |
 
-### CORS Configuration
+`429` responses include `Retry-After` and `X-RateLimit-*` headers.
 
-**Allowed Origins**:
-- Production: `https://repopass.com`
-- Staging: `https://staging.repopass.com`
-- Development: `http://localhost:4321`
+### CORS
 
-**Allowed Methods**: GET, POST, PATCH, DELETE
-
-**Allowed Headers**: Content-Type, Authorization
-
-**Credentials**: true (for cookies)
+No CORS configuration exists in this codebase. That's fine as long as nothing but this app's own
+frontend calls its API routes — if you build a separate client that calls these endpoints
+cross-origin, you'll need to add CORS handling.
 
 ### API Versioning
 
-**Format**: `/api/v1/...`
-
-**Deprecation Policy**:
-- Old versions supported for 6 months
-- Deprecation warnings in response headers
-- Documentation updated
+There is no `/api/v1/` versioning scheme — routes are unversioned.
 
 ## Secrets Management
 
-### AWS Secrets Manager
+**Local development**: `.env` (gitignored), loaded via `dotenv`, validated at startup by
+`src/lib/env.ts` (Zod schema — the app throws a descriptive error naming any missing/invalid
+variable).
 
-**Stored Secrets**:
-- GitHub Personal Access Token
-- Stripe Secret Key
-- JWT Secret
-- Database Credentials
-- Email Service API Keys
+**Production (SST/AWS path)**: secrets are set via `npx sst secret set ...` and stored in AWS
+Secrets Manager, injected into the Lambda environment by SST. There is no automatic rotation
+configured.
 
-**Access Control**:
-- IAM role-based access
-- Least-privilege policy
-- Audit logging (CloudTrail)
-
-**Rotation**:
-- Automatic rotation every 90 days
-- Manual rotation on suspected compromise
-- Zero-downtime rotation strategy
-
-### Environment Variables
-
-**Never Commit**:
-- `.env` files in `.gitignore`
-- Secrets in code
-- API keys in client-side code
-
-**Local Development**:
-- `.env.example` with dummy values
-- Developers create local `.env`
-
-**Production**:
-- Secrets loaded from AWS Secrets Manager
-- Environment variables set in SST config
+**Per-user secrets**: payment provider credentials and the GitHub token are stored in the
+database, encrypted (see above) — not in AWS Secrets Manager, since they're per-tenant, not
+platform-level.
 
 ## Webhook Security
 
-### Stripe Webhook Verification
+### Stripe
 
-**Steps**:
-1. Extract `Stripe-Signature` header
-2. Verify signature using webhook secret
-3. Validate timestamp (reject if > 5 minutes old)
-4. Process event only if verified
+`src/pages/api/webhooks/stripe.ts` reads the `Stripe-Signature` header and verifies it against
+`STRIPE_WEBHOOK_SECRET` via `stripe.webhooks.constructEvent` before processing. Missing/invalid
+signatures are rejected with `400`.
 
-**Example**:
-```typescript
-const signature = request.headers['stripe-signature'];
-const event = stripe.webhooks.constructEvent(
-  request.body,
-  signature,
-  process.env.STRIPE_WEBHOOK_SECRET
-);
-```
+### Lemon Squeezy / Paddle / Gumroad
 
-**Security Measures**:
-- Signature verification prevents spoofing
-- Timestamp check prevents replay attacks
-- Idempotency key prevents duplicate processing
+Each has its own webhook handler with its own verification approach (see `docs/API.md` for the
+event names each handles) — they were not audited in this pass with the same depth as Stripe's;
+if you connect one of these providers in production, verify its signature-checking logic
+yourself before relying on it.
 
 ## GitHub API Security
 
-### Personal Access Token (PAT)
+### OAuth / Personal Access Token
 
-**Scope**: Minimal permissions
-- `repo` (read/write collaborators)
-- `read:user` (verify username)
+**Scope requested at login**: `repo read:user user:email` — this is broader than the minimum
+needed for read-only collaborator management (a fine-grained PAT scoped to just collaborator
+administration would be tighter, but isn't what's implemented).
 
-**Storage**:
-- AWS Secrets Manager
-- Never logged or exposed
+**Storage**: encrypted in the `users` table (see Encryption at Rest above).
 
-**Rotation**:
-- Manual rotation every 90 days
-- Auto-rotation on suspected compromise
+**Collaborator permission granted to purchasers**: `pull` (read-only) — customers can clone/fork
+but not push to the source repo.
 
-**Rate Limiting**:
-- Authenticated: 5000 req/hour
-- Monitor usage via API
-- Alert if approaching limit
+## Payment Security
 
-### Collaborator Permission
+RepoPass never touches card data — that's handled entirely by whichever provider (Stripe, Lemon
+Squeezy, Gumroad, Paddle) the repository owner connects. The database stores only payment
+metadata: provider customer/subscription/payment-intent IDs and the charged amount in cents.
 
-**Permission Level**: `pull` (read-only)
+## Logging
 
-**Rationale**:
-- Customers can clone/fork
-- Customers cannot modify source repo
-- Prevents accidental/malicious changes
+Errors are logged via `console.error`/`console.warn` — there is no structured logging, log
+redaction (e.g., masking emails or tokens in logs), or centralized log aggregation configured in
+this repo. If deployed via SST/Lambda, these end up in whatever CloudWatch Logs SST wires up by
+default; nothing beyond that is configured.
 
-## Payment Security (PCI Compliance)
+## Known Gaps (Honest List)
 
-### Stripe Compliance
-
-**PCI DSS**: Level 1 compliant (via Stripe)
-
-**RepoPass Scope**:
-- **Does NOT store** credit card data
-- **Does NOT process** credit card data
-- **Does NOT transmit** credit card data
-
-**Stripe Checkout**:
-- Hosted checkout (Stripe-managed)
-- PCI compliance handled by Stripe
-- RepoPass never touches card data
-
-**SAQ-A Compliance**:
-RepoPass qualifies for SAQ-A (simplest PCI questionnaire) because:
-- All card data handled by Stripe
-- No card data on RepoPass servers
-- HTTPS enforced
-
-### Payment Metadata
-
-**Stored in RepoPass Database**:
-- Stripe Payment Intent ID
-- Stripe Subscription ID
-- Stripe Customer ID
-- Amount (cents)
-
-**NOT Stored**:
-- Card number
-- CVV
-- Expiration date
-- Billing address (optional in Stripe)
-
-## Logging & Monitoring
-
-### Application Logging
-
-**Logged Events**:
-- Authentication attempts (success/failure)
-- API requests (endpoint, user, timestamp)
-- Access grants/revocations
-- Payment events
-- Errors and exceptions
-
-**Log Storage**:
-- CloudWatch Logs (encrypted)
-- Retention: 90 days
-- Access: Admin only
-
-**Sensitive Data**:
-- Never log passwords
-- Never log credit card data
-- Mask email in logs (e.g., c***@example.com)
-- Mask GitHub PAT in logs
-
-### Security Monitoring
-
-**AWS CloudWatch Alarms**:
-- Failed login attempts (> 10 in 5 min)
-- API error rate (> 5%)
-- Database connection failures
-- Unauthorized access attempts
-
-**SIEM Integration** (Future):
-- CloudTrail logs → SIEM
-- Real-time threat detection
-- Anomaly detection
-
-### Audit Logs
-
-**access_logs Table**:
-- All collaborator additions/removals
-- Email send attempts
-- Payment events
-- Revocation actions
-
-**Retention**: 1 year
-
-**Access**: Admin only, read-only
-
-## Incident Response
-
-### Security Incident Plan
-
-**1. Detection**
-- Automated alerts (CloudWatch)
-- Manual discovery
-- Third-party report
-
-**2. Containment**
-- Isolate affected systems
-- Revoke compromised credentials
-- Block malicious IPs
-
-**3. Investigation**
-- Review logs
-- Identify root cause
-- Assess impact
-
-**4. Remediation**
-- Patch vulnerabilities
-- Rotate secrets
-- Restore from backups if needed
-
-**5. Communication**
-- Notify affected users (if data breach)
-- Report to authorities (if required)
-- Publish post-mortem
-
-**6. Post-Incident**
-- Update security measures
-- Conduct training
-- Document lessons learned
-
-### Data Breach Response
-
-**Threshold**: Unauthorized access to customer data (email, GitHub username)
-
-**Steps**:
-1. Contain breach
-2. Assess scope (how many users affected?)
-3. Notify affected users within 72 hours
-4. Report to authorities (GDPR, CCPA)
-5. Provide remediation (password reset, monitoring)
-
-## Compliance
-
-### GDPR (EU General Data Protection Regulation)
-
-**Data Subject Rights**:
-- **Right to Access**: API endpoint to export user data
-- **Right to Rectification**: Edit email/username
-- **Right to Erasure**: Delete account (30-day retention)
-- **Right to Portability**: JSON export of data
-
-**Lawful Basis**: Contract (purchase agreement)
-
-**Data Processing Agreement**: With Stripe (subprocessor)
-
-**Privacy Policy**: Required, published at `/privacy`
-
-### CCPA (California Consumer Privacy Act)
-
-**Applicability**: If revenue > $25M or users > 50K (future)
-
-**Consumer Rights**:
-- Right to know (data collected)
-- Right to delete
-- Right to opt-out of sale (not applicable - we don't sell data)
-
-### Terms of Service
-
-**Required Clauses**:
-- Access grant terms (lifetime or subscription)
-- Revocation policy (account sharing, ToS violations)
-- Refund policy (handled by Stripe)
-- Disclaimer (no warranties on code)
-- Limitation of liability
-
-**Acceptance**: Checkbox at checkout
+- No GDPR/CCPA data export or erasure endpoints (the `email_notifications` column is the only
+  privacy-related control that exists)
+- No CSRF protection on the OAuth login flow (no `state` parameter)
+- No rate limiting outside of `/api/checkout` and `/api/free-access`
+- No dependency-scanning automation configured (no Dependabot/Snyk config in this repo — `npm
+  audit` is manual)
+- No Content-Security-Policy header
+- Broad OAuth/PAT scope (`repo`) relative to what collaborator management strictly needs
 
 ## Vulnerability Management
 
-### Dependency Scanning
-
-**Tool**: npm audit, Snyk, or Dependabot
-
-**Schedule**: Weekly automated scans
-
-**Action**: Update dependencies, patch vulnerabilities
-
-### Penetration Testing
-
-**Frequency**: Annually (or before major releases)
-
-**Scope**: Full application (web, API, database)
-
-**Report**: Remediate high/critical findings within 30 days
-
-### Bug Bounty Program (Future)
-
-**Platform**: HackerOne or Bugcrowd
-
-**Scope**: Production application
-
-**Rewards**: $100 - $5000 based on severity
-
-## Security Best Practices
-
-### Code Security
-
-- No secrets in code
-- Use environment variables
-- Validate all inputs
-- Sanitize all outputs
-- Use parameterized queries
-- Keep dependencies updated
-- Follow principle of least privilege
-
-### Infrastructure Security
-
-- Enable MFA on AWS account
-- Use IAM roles (not API keys)
-- Encrypt all data (rest + transit)
-- Enable CloudTrail logging
-- Use VPC for database
-- Implement WAF rules
-- Regular security audits
-
-### Operational Security
-
-- Strong passwords (min 16 chars)
-- MFA on all accounts (GitHub, AWS, Stripe)
-- Separate dev/staging/prod environments
-- No production access for developers (except emergencies)
-- Change management process
-- Regular backups
+Run `npm audit` periodically — no automated schedule exists in this repo (no Dependabot
+configuration file was found).
 
 ---
 
-**Last Updated**: January 1, 2026
-**Version**: 1.0
+**Last Updated**: 2026-07-08
